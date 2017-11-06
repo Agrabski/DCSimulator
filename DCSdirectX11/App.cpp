@@ -2,6 +2,7 @@
 #include "App.h"
 
 #include <ppltasks.h>
+#include <chrono>
 
 using namespace DCSdirectX11;
 
@@ -77,6 +78,8 @@ void App::SetWindow(CoreWindow^ window)
 		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
 
 	window->PointerPressed += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnPointerPressed);
+
+	window->PointerReleased += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnPointerReleased);
 
 	m_deviceResources->SetWindow(window);
 }
@@ -198,7 +201,30 @@ void App::OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args)
 
 void DCSdirectX11::App::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
-	m_main->game.targetX = args->CurrentPoint->Position.X;
-	m_main->game.targetY = args->CurrentPoint->Position.Y;
+	duration = std::chrono::steady_clock::now().time_since_epoch().count();
+}
+
+void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
+	using namespace DCS;
+	DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
+	if (VirtualKeyModifiers::Control== args->KeyModifiers/*(duration - std::chrono::steady_clock::now().time_since_epoch().count()) > 300000000000000000ll*/)
+	{
+		m_main->game.selected.clear();
+		//long press
+		for (std::vector<DCS::MobileEntity*>::iterator i = m_main->game.ship.mobileEntities.begin(); i != m_main->game.ship.mobileEntities.end(); i++)
+			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), m_main->game.shipPosition) - position) < 30)
+			{
+				m_main->game.selected.emplace_back(*i);
+			}
+	}
+	else
+	{
+		//short press
+		Room *tmp = m_main->game.ship.findRoom(position - m_main->game.shipPosition);
+		if (tmp != nullptr)
+			for (int i = 0; i < m_main->game.selected.size(); i++)
+				m_main->game.selected[i]->destination = std::pair<DCS::Point, DCS::Room*>(position - m_main->game.shipPosition - tmp->position, tmp);
+	}
 }
 

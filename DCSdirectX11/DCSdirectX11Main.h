@@ -10,10 +10,12 @@ namespace DCS
 {
 	class Dx11Engine :public Game
 	{
-		Point shipPosition = Point(100, 100);
+		
 	public:
+		Point shipPosition = Point(100, 100);
 		void gameRender(ID2D1DeviceContext * context);
 		void renderRoom(ID2D1DeviceContext * context, Room&room);
+		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
 	};
 }
 

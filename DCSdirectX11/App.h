@@ -3,6 +3,8 @@
 #include "pch.h"
 #include "Common\DeviceResources.h"
 #include "DCSdirectX11Main.h"
+#include "Common\StepTimer.h"
+#include <chrono>
 
 namespace DCSdirectX11
 {
@@ -18,6 +20,7 @@ namespace DCSdirectX11
 		virtual void Run();
 		virtual void Uninitialize();
 		void OnPointerPressed(_In_ Windows::UI::Core::CoreWindow^ sender, _In_ Windows::UI::Core::PointerEventArgs^ args);
+		void OnPointerReleased(_In_ Windows::UI::Core::CoreWindow^ sender, _In_ Windows::UI::Core::PointerEventArgs^ args);
 
 	protected:
 		// Application lifecycle event handlers.
@@ -42,6 +45,7 @@ namespace DCSdirectX11
 		std::unique_ptr<DCSdirectX11Main> m_main;
 		bool m_windowClosed;
 		bool m_windowVisible;
+		unsigned long long int duration;
 	};
 }
 

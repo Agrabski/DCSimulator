@@ -136,7 +136,6 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 {
 	ID2D1SolidColorBrush *brush;
 	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
-	context->DrawLine(D2D1::Point2F(x, y), D2D1::Point2F(x + 20, y + 20), brush);
 	for (int i = 0; i < ship.silvete.size()-1; i++)
 	{
 		context->DrawLine(D2D1::Point2F((ship.silvete[i]+shipPosition).first, (ship.silvete[i]+shipPosition).second), D2D1::Point2F((ship.silvete[i+1]+shipPosition).first, (ship.silvete[i+1]+shipPosition).second), brush);
@@ -144,6 +143,9 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 	context->DrawLine(D2D1::Point2F((ship.silvete[0]+shipPosition).first, (ship.silvete[0]+shipPosition).second), D2D1::Point2F((ship.silvete[ship.silvete.size()-1]+shipPosition).first, (ship.silvete[ship.silvete.size()-1]+shipPosition).second), brush);
 	for (std::vector<Room*>::iterator i = ship.rooms.begin(); i != ship.rooms.end(); i++)
 		renderRoom(context, **i);
+	for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+		renderMobileEntity(context, *i);
+
 }
 
 void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
@@ -152,8 +154,16 @@ void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
 	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 	for (int i = 0; i < room.silvete.size() - 1; i++)
 	{
-		context->DrawLine(D2D1::Point2F((room.silvete[i]+shipPosition).first, (room.silvete[i]+shipPosition).second), D2D1::Point2F((room.silvete[i + 1]+shipPosition).first, (room.silvete[i + 1]+shipPosition).second), brush);
+		context->DrawLine(D2D1::Point2F((room.silvete[i]+shipPosition+room.position).first, (room.silvete[i]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[i + 1]+shipPosition + room.position).first, (room.silvete[i + 1]+shipPosition + room.position).second), brush);
 	}
-	context->DrawLine(D2D1::Point2F((room.silvete[0]+shipPosition).first, (room.silvete[0]+shipPosition).second), D2D1::Point2F((room.silvete[room.silvete.size()-1]+shipPosition).first, (room.silvete[room.silvete.size()-1]+shipPosition).second), brush);
+	context->DrawLine(D2D1::Point2F((room.silvete[0]+shipPosition + room.position).first, (room.silvete[0]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[room.silvete.size()-1]+shipPosition + room.position).first, (room.silvete[room.silvete.size()-1]+shipPosition + room.position).second), brush);
+
+}
+
+void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEntity * entity)
+{
+	ID2D1SolidColorBrush *brush;
+	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
+	context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5),brush);
 
 }

@@ -7,6 +7,9 @@ namespace DCS
 	typedef std::pair<int, int> Point;
 
 	Point operator+(const Point&left, const Point&right);
+	Point operator-(const Point&left, const Point&right);
+	bool operator<(const Point&left, const Point&right);
+	float magnitude(const Point&op);
 
 	class Room;
 	class Entity;
@@ -19,6 +22,7 @@ namespace DCS
 		std::vector<Point>silvete;
 		std::vector<Room*>rooms;
 		std::vector<MobileEntity*>mobileEntities;
+		Room *findRoom(Point);
 
 		Ship();
 	};
@@ -29,7 +33,7 @@ namespace DCS
 
 		std::vector<StaticEntity>staticEntities;
 		std::vector<MobileEntity*>mobileEntities;
-		Point position;
+
 		int sizeX;
 		int sizeY;
 		Room*up;
@@ -41,6 +45,7 @@ namespace DCS
 		Room*right;
 		Point positionRight;
 	public:
+		Point position;
 		std::vector<Point>silvete;
 		enum RoomType { Bridge, Engineering, Corridor, };
 		void update();
@@ -49,6 +54,12 @@ namespace DCS
 		void setDown(Room*, Point);
 		void setLeft(Room*, Point);
 		void setRight(Room*, Point);
+		void removeEntity(MobileEntity*e);
+		void addEntity(MobileEntity*e);
+		std::pair<Room*, Point>leftDoor();
+		std::pair<Room*, Point>rightDoor();
+		std::pair<Room*, Point>downDoor();
+		std::pair<Room*, Point>upDoor();
 	private:
 		RoomType type;
 
@@ -59,18 +70,26 @@ namespace DCS
 	public:
 		//returns pointer to the current room
 		virtual Room* update()=0;
-	protected:
-		Room*currentRoom;
 		Point position;
+		Room*currentRoom;
+	protected:
+
+
 	};
 
 	class MobileEntity:public Entity
 	{
+
+		std::vector<Room*>path;
+		Point findDoor(Room*next);
+		void findPath();
 	public:
 		//returns pointer to the current room
 		virtual Room* update();
 		enum MobileEntityType {Marine,Engineer,CrewMember,Boarder}type;
-
+		MobileEntity(Room*current, Point location, MobileEntityType type);
+		std::pair<Point, Room*> destination;
+		Room*location();
 	};
 
 	class StaticEntity :public Entity
@@ -84,13 +103,10 @@ namespace DCS
 	class Game
 	{
 	protected:
-		int x = 0;
-		int y = 0;
-		Ship ship;
-		std::vector<MobileEntity*>selected;
+
 	public:
+		std::vector<MobileEntity*>selected;
+		Ship ship;
 		void gameTick();
-		int targetX = 999999999;
-		int targetY = 999999999;
 	};
 }
