@@ -10,7 +10,7 @@ namespace DCS
 {
 	class Dx11Engine :public Game
 	{
-		
+		unsigned int oddFrame = 0;
 	public:
 		Point shipPosition = Point(100, 100);
 		void gameRender(ID2D1DeviceContext * context);

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <unordered_map>
 
 
 namespace DCS
@@ -15,6 +16,8 @@ namespace DCS
 	class Entity;
 	class MobileEntity;
 	class StaticEntity;
+
+	enum DamageState {Operational, Damaged, OutOfAction, Destroyed};
 
 	class Ship
 	{
@@ -44,10 +47,12 @@ namespace DCS
 		Point positionLeft;
 		Room*right;
 		Point positionRight;
+		DamageState state;
+		float damageTransition=100.0f;
 	public:
 		Point position;
 		std::vector<Point>silvete;
-		enum RoomType { Bridge, Engineering, Corridor, };
+		enum RoomType { Bridge, Engineering, Corridor, LifeSupport };
 		void update();
 		Room(Point position, std::vector<Point>Silvete, std::vector<StaticEntity>entities, RoomType type);
 		void setUp(Room*, Point);
@@ -60,6 +65,9 @@ namespace DCS
 		std::pair<Room*, Point>rightDoor();
 		std::pair<Room*, Point>downDoor();
 		std::pair<Room*, Point>upDoor();
+		void damage(float damage);
+		void repair(float amount);
+		std::pair<float,DamageState> currentState();
 	private:
 		RoomType type;
 
@@ -83,7 +91,9 @@ namespace DCS
 		std::vector<Room*>path;
 		Point findDoor(Room*next);
 		void findPath();
+		int findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * destination, DCS::Point door, DCS::Point position, std::unordered_map<Room*, std::pair<DCS::Point, int>>*);
 	public:
+		bool selected = false;
 		//returns pointer to the current room
 		virtual Room* update();
 		enum MobileEntityType {Marine,Engineer,CrewMember,Boarder}type;

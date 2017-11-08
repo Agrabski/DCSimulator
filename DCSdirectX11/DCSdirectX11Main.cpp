@@ -69,9 +69,6 @@ void DCSdirectX11Main::Update()
 	m_timer.Tick([&]()
 	{
 		// TODO: Replace this with your app's content update functions.
-		m_sceneRenderer->Update(m_timer);
-		m_fpsTextRenderer->Update(m_timer);
-
 	});
 	this->game.gameTick();
 }
@@ -110,8 +107,6 @@ bool DCSdirectX11Main::Render()
 	testcontext->BeginDraw();
 	game.gameRender(testcontext);
 	testcontext->EndDraw();
-	//m_sceneRenderer->Render();
-	//m_fpsTextRenderer->Render();
 
 	return true;
 }
@@ -134,8 +129,9 @@ void DCSdirectX11Main::OnDeviceRestored()
 
 void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 {
+	oddFrame++;
 	ID2D1SolidColorBrush *brush;
-	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 	for (int i = 0; i < ship.silvete.size()-1; i++)
 	{
 		context->DrawLine(D2D1::Point2F((ship.silvete[i]+shipPosition).first, (ship.silvete[i]+shipPosition).second), D2D1::Point2F((ship.silvete[i+1]+shipPosition).first, (ship.silvete[i+1]+shipPosition).second), brush);
@@ -145,25 +141,44 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 		renderRoom(context, **i);
 	for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
 		renderMobileEntity(context, *i);
-
+	brush->Release();
 }
 
 void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
 {
 	ID2D1SolidColorBrush *brush;
-	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 	for (int i = 0; i < room.silvete.size() - 1; i++)
 	{
 		context->DrawLine(D2D1::Point2F((room.silvete[i]+shipPosition+room.position).first, (room.silvete[i]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[i + 1]+shipPosition + room.position).first, (room.silvete[i + 1]+shipPosition + room.position).second), brush);
 	}
 	context->DrawLine(D2D1::Point2F((room.silvete[0]+shipPosition + room.position).first, (room.silvete[0]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[room.silvete.size()-1]+shipPosition + room.position).first, (room.silvete[room.silvete.size()-1]+shipPosition + room.position).second), brush);
-
+	brush->Release();
 }
 
 void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEntity * entity)
 {
 	ID2D1SolidColorBrush *brush;
-	auto hr = context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
-	context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5),brush);
-
+	if (!entity->selected || (entity->selected&&(oddFrame%60)<45))
+	{
+		switch (entity->type)
+		{
+		case MobileEntity::Engineer:
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkOrange, 1.0f), &brush);
+			break;
+		case MobileEntity::Boarder:
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::SaddleBrown, 1.0f), &brush);
+			break;
+		case MobileEntity::CrewMember:
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::OrangeRed, 1.0f), &brush);
+			break;
+		case MobileEntity::Marine:
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
+			break;
+		default:
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkBlue, 1.0f), &brush);
+		}
+		context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5), brush);
+		brush->Release();
+	}
 }
