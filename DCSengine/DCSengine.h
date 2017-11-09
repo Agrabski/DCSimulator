@@ -28,6 +28,7 @@ namespace DCS
 		Room *findRoom(Point);
 
 		Ship();
+		~Ship();
 	};
 
 	class Room
@@ -68,6 +69,7 @@ namespace DCS
 		void damage(float damage);
 		void repair(float amount);
 		std::pair<float,DamageState> currentState();
+		bool colides(Point p, MobileEntity* e);
 	private:
 		RoomType type;
 
@@ -87,12 +89,16 @@ namespace DCS
 
 	class MobileEntity:public Entity
 	{
-
+	public:
+		enum Status { Nominal,Wounded,Dead };
+	private:
+		Status health = Nominal;
 		std::vector<Room*>path;
 		Point findDoor(Room*next);
 		void findPath();
 		int findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * destination, DCS::Point door, DCS::Point position, std::unordered_map<Room*, std::pair<DCS::Point, int>>*);
 	public:
+		Status currentStatus();
 		bool selected = false;
 		//returns pointer to the current room
 		virtual Room* update();
