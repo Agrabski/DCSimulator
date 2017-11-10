@@ -254,6 +254,6 @@ void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender
 void DCSdirectX11::App::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args)
 {
 	if (args->VirtualKey == VirtualKey::Space)
-		m_main->game.ship.rooms[0]->damage(20);
+		m_main->game.ship.rooms[0]->setOnFire();
 }
 

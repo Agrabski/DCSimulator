@@ -230,9 +230,9 @@ void DCS::Room::update()
 			onFire = false;
 			fire = 0;
 		}
-		damage(FIRE_DAMAGE_RATE);
+		damage(FIRE_DAMAGE_RATE*fire);
 		oxygenLevel -= fire*OXYGEN_CONSUMPTION;
-		if(fire<1000)
+		if(fire<MAX_FIRE_VALUE)
 			fire += FIRE_SPREAD_RATE;
 		if(fire>MIN_FIRE_VALUE+ rand()%FIRE_SPREAD_CHANCE)
 			switch (rand() % 4)
@@ -384,13 +384,27 @@ bool DCS::Room::colides(Point p, MobileEntity* e)
 
 void DCS::Room::setOnFire()
 {
-	onFire = true;
-	fire += 1;
+	if (oxygenLevel > 1.1* MIN_OXYGEN_TO_FIRE)
+	{
+		fire = max(1, fire);
+		onFire = true;
+	}
 }
 
 int DCS::Room::fireValue()
 {
 	return fire;
+}
+
+void DCS::Room::extinguish(float ammount)
+{
+	if (fire > 0)
+		fire =max(fire- ammount,0);
+}
+
+DCS::Room::RoomType DCS::Room::whatType()
+{
+	return type;
 }
 
 DCS::Point DCS::operator+(const Point & left, const Point & right)
@@ -445,7 +459,10 @@ DCS::Room * DCS::MobileEntity::update()
 	if (destination.second == currentRoom&&position==destination.first)
 		if (type==Engineer)
 		{
-			currentRoom->repair(1);
+			if (currentRoom->isOnFire())
+				currentRoom->extinguish(1);
+			else 
+				currentRoom->repair(1);
 			return currentRoom;
 		}
 	if (destination.second == currentRoom)

@@ -2,7 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #define REPAIR_SPEED 1.0f
-#define FIRE_DAMAGE_RATE 1.0f
+#define FIRE_DAMAGE_RATE 0.001f
 #define FIRE_SPREAD_RATE 1
 #define FIRE_SPREAD_CHANCE 200
 #define MIN_FIRE_VALUE 500
@@ -12,6 +12,7 @@
 #define MAX_OXYGEN_SUPPLY_RATE 2.0f
 #define MAX_WELD 100.0f
 #define OXYGEN_CONSUMPTION 0.0001f
+#define MAX_FIRE_VALUE 1000
 
 namespace DCS
 {
@@ -105,6 +106,8 @@ namespace DCS
 		bool colides(Point p, MobileEntity* e);
 		void setOnFire();
 		int fireValue();
+		void extinguish(float ammount);
+		RoomType whatType();
 	private:
 		RoomType type;
 

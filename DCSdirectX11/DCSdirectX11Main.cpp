@@ -141,6 +141,7 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 		renderRoom(context, **i);
 	for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
 		renderMobileEntity(context, *i);
+	fManager.render(context);
 	brush->Release();
 }
 
@@ -175,6 +176,23 @@ void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
 		context->DrawLine(D2D1::Point2F((room.silvete[i]+shipPosition+room.position).first, (room.silvete[i]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[i + 1]+shipPosition + room.position).first, (room.silvete[i + 1]+shipPosition + room.position).second), brush);
 	}
 	context->DrawLine(D2D1::Point2F((room.silvete[0]+shipPosition + room.position).first, (room.silvete[0]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[room.silvete.size()-1]+shipPosition + room.position).first, (room.silvete[room.silvete.size()-1]+shipPosition + room.position).second), brush);
+	if (room.isOnFire())
+	{
+		fManager.add(&room);
+		IDWriteFactory* t;
+		IDWriteTextFormat*c;
+		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
+		t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 10, L"whatever", &c);
+		wchar_t *buffer = new wchar_t[3];
+		swprintf(buffer, L"%02i", (room.fireValue() * 100) / MAX_FIRE_VALUE);
+		std::wstring k(buffer);
+		context->DrawText(buffer, k.size(), c, D2D1::RectF((room.position + shipPosition).first, (room.position + shipPosition).second, (room.position + shipPosition).first + 20, (room.position + shipPosition).second + 30), brush);
+		t->Release();
+		c->Release();
+	}
+	else
+		fManager.remove(&room);
+	
 	brush->Release();
 }
 
@@ -202,5 +220,90 @@ void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEnt
 		}
 		context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5), brush);
 		brush->Release();
+	}
+}
+
+void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
+{
+	if (!fires.empty()||remainCount>0)
+	{
+		remainCount--;
+		ID2D1SolidColorBrush *brush;
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+		int sizeX = 250;
+		int sizeY = (fires.size() + 1) * 20;
+		context->DrawRectangle(D2D1::RectF(position.first, position.second, position.first + sizeX, position.second + sizeY), brush);
+		IDWriteFactory* t;
+		IDWriteTextFormat*c;
+		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
+		t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+		wchar_t *buffer = new wchar_t[50];
+		swprintf(buffer, L"FIRE!");
+		context->DrawText(buffer, 5, c, D2D1::RectF(position.first+100, position.second, position.first + sizeX, position.second + 10), brush);
+		
+		for (int i = 0; i < fires.size(); i++)
+		{
+			swprintf(buffer, L"%s  %03d%% %s", DCS::enumToString(fires[i]->whatType()), (fires[i]->fireValue()*100)/MAX_FIRE_VALUE, enumToString(fires[i]->currentState().second));
+			std::wstring t(buffer);
+			context->DrawText(buffer, t.length(), c, D2D1::RectF(position.first+5, position.second + (i + 1) * 15, position.first + sizeX, position.second + (i + 1) * 15 + 15), brush);
+		}
+		delete[]buffer;
+		brush->Release();
+		t->Release();
+		c->Release();
+	}
+}
+
+DCS::Dx11Engine::FireManager::FireManager(Point position)
+{
+	this->position = position;
+}
+
+void DCS::Dx11Engine::FireManager::add(Room * r)
+{
+	for (auto i = fires.begin(); i != fires.end(); i++)
+		if (*i == r)
+			return;
+	fires.push_back(r);
+}
+
+void DCS::Dx11Engine::FireManager::remove(Room * r)
+{
+	int k = fires.size();
+	for (auto i = fires.begin(); i != fires.end(); i++)
+		if (*i == r)
+		{
+			fires.erase(i);
+			if (k == 1)
+				remainCount = 120;
+			return;
+		}
+}
+
+wchar_t * DCS::enumToString(Room::RoomType t)
+{
+	switch (t)
+	{
+	case DCS::Room::Bridge:
+		return L"Bridge";
+	case DCS::Room::Engineering:
+		return L"Engineering";
+	case DCS::Room::Corridor:
+		return L"Corridor";
+	}
+}
+
+wchar_t * DCS::enumToString(DamageState t)
+{
+	switch (t)
+	{
+	case Operational:
+		return L"Operational";
+	case Damaged:
+		return L"Damaged";
+	case OutOfAction:
+		return L"Out of action";
+	case Destroyed:
+		return L"Destroyed";
 	}
 }

@@ -8,9 +8,23 @@
 
 namespace DCS
 {
+	wchar_t* enumToString(Room::RoomType t);
+	wchar_t* enumToString(DamageState t);
+
 	class Dx11Engine :public Game
 	{
 		unsigned int oddFrame = 0;
+		class FireManager
+		{
+			int remainCount = 0;
+			std::vector<Room*>fires;
+			Point position;
+		public:
+			void render(ID2D1DeviceContext * context);
+			FireManager(Point position);
+			void add(Room* r);
+			void remove(Room*r);
+		}fManager = FireManager(Point(500, 150));
 	public:
 		Point shipPosition = Point(100, 100);
 		void gameRender(ID2D1DeviceContext * context);
