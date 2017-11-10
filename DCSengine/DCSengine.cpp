@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "DCSengine.h"
 #include <cmath>
+#include <ctime>
 
 
 bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
@@ -39,12 +40,12 @@ bool pnpoly(std::vector<DCS::Point>vert, float testx, float testy)
 	return c;
 }
 
-int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * destination, DCS::Point door, DCS::Point position, std::unordered_map<Room*, std::pair<DCS::Point,int>>*prevVisits)
+int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * targetRoom, DCS::Point door, DCS::Point currentPosition, std::unordered_map<Room*, std::pair<DCS::Point,int>>*prevVisits)
 {
 	if (location == nullptr)
 		return MAXINT;
-	if (location == destination)
-		return (int)magnitude(door - position) + currPath.second;
+	if (location == targetRoom)
+		return (int)magnitude(door - currentPosition) + currPath.second;
 	std::pair<std::vector<DCS::Room*>, int> best;
 	int tmpvalue;
 	std::pair < DCS::Room*, DCS::Point> tmpDoor;
@@ -55,7 +56,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 	std::unordered_map<Room*, std::pair<DCS::Point, int>>::iterator dooriterator = prevVisits->find(currentRoom);
 	if (dooriterator == prevVisits->cend() || (dooriterator != prevVisits->cend() && (dooriterator->second.first != tmpDoor.second || magnitude(door - tmpDoor.second) + tmp.second < dooriterator->second.second)))
 	{
-		tmp.second += magnitude(door - tmpDoor.second);
+		tmp.second += (int)magnitude(door - tmpDoor.second);
 		if (dooriterator == prevVisits->cend())
 			prevVisits->insert(std::pair<DCS::Room*, std::pair<DCS::Point, int>>(currentRoom, std::pair<DCS::Point, int>(door, tmp.second)));
 		else
@@ -63,7 +64,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 		if (!contains(tmp.first, tmpDoor.first))
 		{
 			tmp.first.push_back(tmpDoor.first);
-			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, destination, tmpDoor.second, position, prevVisits);
+			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, targetRoom, tmpDoor.second, currentPosition, prevVisits);
 			if (currentBest > tmpvalue)
 			{
 				currentBest = tmpvalue;
@@ -78,7 +79,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 	dooriterator = prevVisits->find(currentRoom);
 	if (dooriterator == prevVisits->cend() || (dooriterator != prevVisits->cend() && (dooriterator->second.first != tmpDoor.second || magnitude(door - tmpDoor.second) + tmp.second < dooriterator->second.second)))
 	{
-		tmp.second += magnitude(door - tmpDoor.second);
+		tmp.second +=(int) magnitude(door - tmpDoor.second);
 		if (dooriterator == prevVisits->cend())
 			prevVisits->insert(std::pair<DCS::Room*, std::pair<DCS::Point, int>>(currentRoom, std::pair<DCS::Point, int>(door, tmp.second)));
 		else
@@ -86,7 +87,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 		if (!contains(tmp.first, tmpDoor.first))
 		{
 			tmp.first.push_back(tmpDoor.first);
-			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, destination, tmpDoor.second, position, prevVisits);
+			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, targetRoom, tmpDoor.second, currentPosition, prevVisits);
 			if (currentBest > tmpvalue)
 			{
 				currentBest = tmpvalue;
@@ -101,7 +102,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 	dooriterator = prevVisits->find(currentRoom);
 	if (dooriterator == prevVisits->cend() || (dooriterator != prevVisits->cend() && (dooriterator->second.first != tmpDoor.second || magnitude(door - tmpDoor.second) + tmp.second < dooriterator->second.second)))
 	{
-		tmp.second += magnitude(door - tmpDoor.second);
+		tmp.second +=(int) magnitude(door - tmpDoor.second);
 		if (dooriterator == prevVisits->cend())
 			prevVisits->insert(std::pair<DCS::Room*, std::pair<DCS::Point, int>>(currentRoom, std::pair<DCS::Point, int>(door, tmp.second)));
 		else
@@ -109,7 +110,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 		if (!contains(tmp.first, tmpDoor.first))
 		{
 			tmp.first.push_back(tmpDoor.first);
-			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, destination, tmpDoor.second, position, prevVisits);
+			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, targetRoom, tmpDoor.second, currentPosition, prevVisits);
 			if (currentBest > tmpvalue)
 			{
 				currentBest = tmpvalue;
@@ -125,7 +126,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 	dooriterator = prevVisits->find(currentRoom);
 	if (dooriterator == prevVisits->cend() || (dooriterator != prevVisits->cend() && (dooriterator->second.first != tmpDoor.second || magnitude(door - tmpDoor.second) + tmp.second < dooriterator->second.second)))
 	{
-		tmp.second += magnitude(door - tmpDoor.second);
+		tmp.second +=(int) magnitude(door - tmpDoor.second);
 		if (dooriterator == prevVisits->cend())
 			prevVisits->insert(std::pair<DCS::Room*, std::pair<DCS::Point, int>>(currentRoom, std::pair<DCS::Point, int>(door, tmp.second)));
 		else
@@ -133,7 +134,7 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 		if (!contains(tmp.first, tmpDoor.first))
 		{
 			tmp.first.push_back(tmpDoor.first);
-			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, destination, tmpDoor.second, position, prevVisits);
+			tmpvalue = findRoute(tmp, currentBest, tmpDoor.first, targetRoom, tmpDoor.second, currentPosition, prevVisits);
 			if (currentBest > tmpvalue)
 			{
 				currentBest = tmpvalue;
@@ -159,7 +160,7 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 	for (std::vector<Room*>::iterator i = rooms.begin(); i != rooms.end(); i++)
 	{
 		Point tmp = p - (*i)->position;
-		if (pnpoly((*i)->silvete, tmp.first, tmp.second))
+		if (pnpoly((*i)->silvete, (float)tmp.first, (float)tmp.second))
 			return *i;
 	}
 	return nullptr;
@@ -167,6 +168,7 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 
 DCS::Ship::Ship()
 {
+	srand((unsigned int)time(NULL));
 	silvete.emplace_back(Point(0, 0));
 	silvete.emplace_back(Point(300, 0));
 	silvete.emplace_back(Point(300, 1000));
@@ -214,9 +216,45 @@ DCS::Ship::~Ship()
 		delete mobileEntities[i];
 }
 
+bool DCS::Room::isOnFire()
+{
+	return onFire;
+}
+
 void DCS::Room::update()
 {
-	//throw std::runtime_error("not implemented");
+	if (onFire)
+	{
+		if (oxygenLevel < MIN_OXYGEN_TO_FIRE)
+		{
+			onFire = false;
+			fire = 0;
+		}
+		damage(FIRE_DAMAGE_RATE);
+		oxygenLevel -= fire*OXYGEN_CONSUMPTION;
+		if(fire<1000)
+			fire += FIRE_SPREAD_RATE;
+		if(fire>MIN_FIRE_VALUE+ rand()%FIRE_SPREAD_CHANCE)
+			switch (rand() % 4)
+			{
+			case 0:
+				if (left != nullptr)
+					left->setOnFire();
+				break;
+			case 1:
+				if (right != nullptr)
+					right->setOnFire();
+				break;
+			case 2:
+				if (down != nullptr)
+					down->setOnFire();
+				break;
+			case 3:
+				if (up != nullptr)
+					up->setOnFire();
+				break;
+			}
+	}
 }
 
 DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEntity> entities, RoomType type)
@@ -227,39 +265,39 @@ DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEn
 	this->type = type;
 }
 
-void DCS::Room::setUp(Room *room, Point position)
+void DCS::Room::setUp(Room *room, Point connection)
 {
 	if (this->up == nullptr)
 	{
 		up = room;
-		positionUp = position;
+		positionUp = connection;
 	}
 }
 
-void DCS::Room::setDown(Room *room, Point position)
+void DCS::Room::setDown(Room *room, Point connection)
 {
 	if (this->down == nullptr)
 	{
 		down = room;
-		positionDown = position;
+		positionDown = connection;
 	}
 }
 
-void DCS::Room::setLeft(Room *room, Point position)
+void DCS::Room::setLeft(Room *room, Point connection)
 {
 	if (this->left == nullptr)
 	{
 		left = room;
-		positionLeft = position;
+		positionLeft = connection;
 	}
 }
 
-void DCS::Room::setRight(Room *room, Point position)
+void DCS::Room::setRight(Room *room, Point connection)
 {
 	if (this->right == nullptr)
 	{
 		right = room;
-		positionRight = position;
+		positionRight = connection;
 	}
 }
 
@@ -309,6 +347,11 @@ void DCS::Room::damage(float damage)
 		{
 			state = (DamageState)(state + 1);
 			damageTransition = 100.0f + damageTransition;
+			if (rand() % 100 < 30)
+			{
+				this->onFire = true;
+				fire += FIRE_SPREAD_RATE;
+			}
 		}
 	}
 }
@@ -339,6 +382,17 @@ bool DCS::Room::colides(Point p, MobileEntity* e)
 	return false;
 }
 
+void DCS::Room::setOnFire()
+{
+	onFire = true;
+	fire += 1;
+}
+
+int DCS::Room::fireValue()
+{
+	return fire;
+}
+
 DCS::Point DCS::operator+(const Point & left, const Point & right)
 {
 	return Point(left.first + right.first, left.second + right.second);
@@ -356,7 +410,7 @@ bool DCS::operator<(const Point & left, const Point & right)
 
 float DCS::magnitude(const Point & op)
 {
-	return sqrt(op.first*op.first + op.second*op.second);
+	return (float)sqrt(op.first*op.first + op.second*op.second);
 }
 
 DCS::Point DCS::MobileEntity::findDoor(Room * next)
@@ -370,6 +424,7 @@ DCS::Point DCS::MobileEntity::findDoor(Room * next)
 		return k.second;
 	if ((k = currentRoom->upDoor()).first == next)
 		return k.second;
+	throw std::runtime_error("Room not found");
 }
 
 void DCS::MobileEntity::findPath()
@@ -382,9 +437,12 @@ void DCS::MobileEntity::findPath()
 
 DCS::Room * DCS::MobileEntity::update()
 {
+	if (currentRoom->isOnFire())
+		if (currentRoom->fireValue()*(rand() % 3) > DEATH_CHANCE&&health!=Dead)
+			health = (Status)(health + 1);
 	if (health != Nominal)
 		return currentRoom;
-	if (destination.second == nullptr)
+	if (destination.second == currentRoom&&position==destination.first)
 		if (type==Engineer)
 		{
 			currentRoom->repair(1);
@@ -450,4 +508,78 @@ DCS::Room * DCS::MobileEntity::location()
 DCS::Room * DCS::StaticEntity::update()
 {
 	throw std::runtime_error("not implemented");
+}
+
+std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr)
+{
+	if (curr == firstSide.first)
+		return secondSide;
+	if (curr == secondSide.first)
+		return firstSide;
+	throw std::runtime_error("Requested room is not connected");
+}
+
+bool DCS::Door::weld(float amount)
+{
+	if (close())
+		if (isWeldedShut < MAX_WELD)
+		{
+			isWeldedShut += amount;
+			return true;
+		}
+	return false;
+}
+
+void DCS::Door::unweld(float amount)
+{
+	if (isWeldedShut > 0)
+		isWeldedShut -= amount;
+	if (isWeldedShut < 0)
+		isWeldedShut = 0.0f;
+}
+
+bool DCS::Door::open()
+{
+	if (isOpen)
+		return true;
+	if (works&&isWeldedShut == 0)
+	{
+		isOpen = true;
+		return true;
+	}
+	return false;
+}
+
+bool DCS::Door::close()
+{
+	if (this->works == true)
+	{
+		isOpen = false;
+		return true;
+	}
+	else
+		if (isOpen == false)
+			return true;
+	return false;
+}
+
+bool DCS::Door::isItOpen()
+{
+	return isOpen;
+}
+
+float DCS::Door::isWelded()
+{
+	return isWeldedShut;
+}
+
+bool DCS::Door::isOperational()
+{
+	return works;
+}
+
+DCS::Door::Door(Room *r1, Point p1, Room *r2, Point p2)
+{
+	firstSide = std::pair<Room*, Point>(r1, p1);
+	secondSide = std::pair<Room*, Point>(r2, p2);
 }

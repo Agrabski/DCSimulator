@@ -147,7 +147,29 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
 {
 	ID2D1SolidColorBrush *brush;
-	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Orange, 1.0f), &brush);
+	if(!room.isOnFire()||(room.isOnFire()&&this->oddFrame%60<30))
+		switch (room.currentState().second)
+		{
+		case Operational:
+			brush->Release();
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Green, 1.0f), &brush);
+			break;
+		case Damaged:
+			brush->Release();
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow, 1.0f), &brush);
+			break;
+		case OutOfAction:
+			brush->Release();
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
+			break;
+		case Destroyed:
+			brush->Release();
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+			break;
+		default:
+			break;
+		}
 	for (int i = 0; i < room.silvete.size() - 1; i++)
 	{
 		context->DrawLine(D2D1::Point2F((room.silvete[i]+shipPosition+room.position).first, (room.silvete[i]+shipPosition + room.position).second), D2D1::Point2F((room.silvete[i + 1]+shipPosition + room.position).first, (room.silvete[i + 1]+shipPosition + room.position).second), brush);

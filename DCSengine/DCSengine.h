@@ -1,7 +1,17 @@
 ﻿#pragma once
 #include <vector>
 #include <unordered_map>
-
+#define REPAIR_SPEED 1.0f
+#define FIRE_DAMAGE_RATE 1.0f
+#define FIRE_SPREAD_RATE 1
+#define FIRE_SPREAD_CHANCE 200
+#define MIN_FIRE_VALUE 500
+#define DEATH_CHANCE 1000
+#define MAX_OXYGEN 100.0f
+#define MIN_OXYGEN_TO_FIRE 20.0f
+#define MAX_OXYGEN_SUPPLY_RATE 2.0f
+#define MAX_WELD 100.0f
+#define OXYGEN_CONSUMPTION 0.0001f
 
 namespace DCS
 {
@@ -31,13 +41,35 @@ namespace DCS
 		~Ship();
 	};
 
+	class Door
+	{
+		std::pair<Room*, Point> firstSide;
+		std::pair<Room*, Point> secondSide;
+		bool isOpen = false;
+		float isWeldedShut = 0.0f;
+		bool works = true;
+	public:
+		std::pair<Room*, Point>otherSide(Room*curr);
+		bool weld(float amount);
+		void unweld(float amount);
+		//returns success state
+		bool open();
+		//returns success state
+		bool close();
+		bool isItOpen();
+		float isWelded();
+		bool isOperational();
+		Door(Room*, Point, Room*, Point);
+	};
+
 	class Room
 	{
 		bool PlayerHasVision;
-
+		float oxygenLevel=MAX_OXYGEN;
 		std::vector<StaticEntity>staticEntities;
 		std::vector<MobileEntity*>mobileEntities;
-
+		bool onFire = false;
+		int fire = 0;
 		int sizeX;
 		int sizeY;
 		Room*up;
@@ -51,6 +83,7 @@ namespace DCS
 		DamageState state;
 		float damageTransition=100.0f;
 	public:
+		bool isOnFire();
 		Point position;
 		std::vector<Point>silvete;
 		enum RoomType { Bridge, Engineering, Corridor, LifeSupport };
@@ -70,6 +103,8 @@ namespace DCS
 		void repair(float amount);
 		std::pair<float,DamageState> currentState();
 		bool colides(Point p, MobileEntity* e);
+		void setOnFire();
+		int fireValue();
 	private:
 		RoomType type;
 

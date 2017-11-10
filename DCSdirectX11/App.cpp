@@ -81,6 +81,8 @@ void App::SetWindow(CoreWindow^ window)
 
 	window->PointerReleased += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnPointerReleased);
 
+	window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &App::OnButtonPress);
+
 	m_deviceResources->SetWindow(window);
 }
 
@@ -247,5 +249,11 @@ void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender
 					m_main->game.selected[i]->destination = std::pair<DCS::Point, DCS::Room*>(position - m_main->game.shipPosition - tmp->position, tmp);
 		}
 	}
+}
+
+void DCSdirectX11::App::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args)
+{
+	if (args->VirtualKey == VirtualKey::Space)
+		m_main->game.ship.rooms[0]->damage(20);
 }
 
