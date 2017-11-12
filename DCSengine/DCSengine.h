@@ -108,6 +108,7 @@ namespace DCS
 		int fireValue();
 		void extinguish(float ammount);
 		RoomType whatType();
+		int currentOxygenLevel();
 	private:
 		RoomType type;
 
@@ -144,6 +145,7 @@ namespace DCS
 		MobileEntity(Room*current, Point location, MobileEntityType type);
 		std::pair<Point, Room*> destination;
 		Room*location();
+		void changeDestination(std::pair<Point, Room*> d);
 	};
 
 	class StaticEntity :public Entity

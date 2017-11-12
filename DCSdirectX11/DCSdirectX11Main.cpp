@@ -231,7 +231,7 @@ void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
 		ID2D1SolidColorBrush *brush;
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 		int sizeX = 250;
-		int sizeY = (fires.size() + 1) * 20;
+		int sizeY = (fires.size() + 2) * 20;
 		context->DrawRectangle(D2D1::RectF(position.first, position.second, position.first + sizeX, position.second + sizeY), brush);
 		IDWriteFactory* t;
 		IDWriteTextFormat*c;
@@ -240,12 +240,14 @@ void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
 		wchar_t *buffer = new wchar_t[50];
 		swprintf(buffer, L"FIRE!");
 		context->DrawText(buffer, 5, c, D2D1::RectF(position.first+100, position.second, position.first + sizeX, position.second + 10), brush);
+		swprintf(buffer, L"Room - Fire - Functionality - Oxygen");
+		context->DrawText(buffer, 37, c, D2D1::RectF(position.first + 5, position.second + 17, position.first + sizeX, position.second + 20), brush);
 		
 		for (int i = 0; i < fires.size(); i++)
 		{
-			swprintf(buffer, L"%s  %03d%% %s", DCS::enumToString(fires[i]->whatType()), (fires[i]->fireValue()*100)/MAX_FIRE_VALUE, enumToString(fires[i]->currentState().second));
+			swprintf(buffer, L"%s  %03d%% %s %03d%%", DCS::enumToString(fires[i]->whatType()), (fires[i]->fireValue()*100)/MAX_FIRE_VALUE, enumToString(fires[i]->currentState().second),fires[i]->currentOxygenLevel());
 			std::wstring t(buffer);
-			context->DrawText(buffer, t.length(), c, D2D1::RectF(position.first+5, position.second + (i + 1) * 15, position.first + sizeX, position.second + (i + 1) * 15 + 15), brush);
+			context->DrawText(buffer, t.length(), c, D2D1::RectF(position.first+5, position.second + (i + 2) * 15, position.first + sizeX, position.second + (i + 2) * 15 + 15), brush);
 		}
 		delete[]buffer;
 		brush->Release();

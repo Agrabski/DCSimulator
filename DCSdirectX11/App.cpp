@@ -246,7 +246,7 @@ void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender
 			Room *tmp = m_main->game.ship.findRoom(position - m_main->game.shipPosition);
 			if (tmp != nullptr)
 				for (int i = 0; i < m_main->game.selected.size(); i++)
-					m_main->game.selected[i]->destination = std::pair<DCS::Point, DCS::Room*>(position - m_main->game.shipPosition - tmp->position, tmp);
+					m_main->game.selected[i]->changeDestination( std::pair<DCS::Point, DCS::Room*>(position - m_main->game.shipPosition - tmp->position, tmp));
 		}
 	}
 }

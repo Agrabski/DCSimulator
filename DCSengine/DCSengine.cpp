@@ -388,6 +388,7 @@ void DCS::Room::setOnFire()
 	{
 		fire = max(1, fire);
 		onFire = true;
+
 	}
 }
 
@@ -405,6 +406,11 @@ void DCS::Room::extinguish(float ammount)
 DCS::Room::RoomType DCS::Room::whatType()
 {
 	return type;
+}
+
+int DCS::Room::currentOxygenLevel()
+{
+	return oxygenLevel;
 }
 
 DCS::Point DCS::operator+(const Point & left, const Point & right)
@@ -438,11 +444,12 @@ DCS::Point DCS::MobileEntity::findDoor(Room * next)
 		return k.second;
 	if ((k = currentRoom->upDoor()).first == next)
 		return k.second;
-	throw std::runtime_error("Room not found");
+	throw std::exception();
 }
 
 void DCS::MobileEntity::findPath()
 {
+	path.clear();
 	std::unordered_map<Room*, std::pair<DCS::Point, int>>map;
 	std::pair<std::vector<DCS::Room*>, int>tmp(path, 0);
 	findRoute(tmp, MAXINT, currentRoom, destination.second, position, destination.first, &map);
@@ -456,15 +463,18 @@ DCS::Room * DCS::MobileEntity::update()
 			health = (Status)(health + 1);
 	if (health != Nominal)
 		return currentRoom;
-	if (destination.second == currentRoom&&position==destination.first)
-		if (type==Engineer)
+	if (destination.second == currentRoom&&position == destination.first)
+	{
+		if (type == Engineer)
 		{
 			if (currentRoom->isOnFire())
 				currentRoom->extinguish(1);
-			else 
+			else
 				currentRoom->repair(1);
-			return currentRoom;
 		}
+		return currentRoom;
+
+	}
 	if (destination.second == currentRoom)
 	{
 		if (!currentRoom->colides(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)), this))
@@ -487,7 +497,16 @@ DCS::Room * DCS::MobileEntity::update()
 	}
 	if (path.size() != 0 && (destination.second == path[path.size() - 1]))
 	{
-		Point tmp = findDoor(path[0]);
+		Point tmp;
+		try
+		{
+			tmp = findDoor(path[0]);
+		}
+		catch (std::exception)
+		{
+			findPath();
+			tmp = findDoor(path[0]);
+		}
 		Room*prev=currentRoom;
 		position = position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1));
 		if (position == tmp)
@@ -520,6 +539,11 @@ DCS::MobileEntity::MobileEntity(Room * current, Point location, MobileEntityType
 DCS::Room * DCS::MobileEntity::location()
 {
 	return currentRoom;
+}
+
+void DCS::MobileEntity::changeDestination(std::pair<Point, Room*> d)
+{
+	destination = d;
 }
 
 DCS::Room * DCS::StaticEntity::update()
