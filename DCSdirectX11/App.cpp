@@ -230,7 +230,7 @@ void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender
 		m_main->game.selected.clear();
 		//long press
 		for (std::vector<DCS::MobileEntity*>::iterator i = m_main->game.ship.mobileEntities.begin(); i != m_main->game.ship.mobileEntities.end(); i++)
-			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), m_main->game.shipPosition) - position) < 30)
+			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), m_main->game.shipPosition) - position) < 15)
 			{
 				(*i)->selected = true;
 				m_main->game.selected.emplace_back(*i);

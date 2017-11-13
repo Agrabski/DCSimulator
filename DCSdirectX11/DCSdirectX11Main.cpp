@@ -245,7 +245,7 @@ void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
 		
 		for (int i = 0; i < fires.size(); i++)
 		{
-			swprintf(buffer, L"%s  %03d%% %s %03d%%", DCS::enumToString(fires[i]->whatType()), (fires[i]->fireValue()*100)/MAX_FIRE_VALUE, enumToString(fires[i]->currentState().second),fires[i]->currentOxygenLevel());
+			swprintf(buffer, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i]->whatType()), (fires[i]->fireValue()*100)/MAX_FIRE_VALUE, (fires[i]->fireValue()) % (MAX_FIRE_VALUE/100), enumToString(fires[i]->currentState().second),fires[i]->currentOxygenLevel());
 			std::wstring t(buffer);
 			context->DrawText(buffer, t.length(), c, D2D1::RectF(position.first+5, position.second + (i + 2) * 15, position.first + sizeX, position.second + (i + 2) * 15 + 15), brush);
 		}

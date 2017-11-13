@@ -3,7 +3,7 @@
 #include <unordered_map>
 #define REPAIR_SPEED 1.0f
 #define FIRE_DAMAGE_RATE 0.001f
-#define FIRE_SPREAD_RATE 1
+#define FIRE_SPREAD_MODIFIER 1.001f
 #define FIRE_SPREAD_CHANCE 200
 #define MIN_FIRE_VALUE 500
 #define DEATH_CHANCE 1000
@@ -11,8 +11,9 @@
 #define MIN_OXYGEN_TO_FIRE 20.0f
 #define MAX_OXYGEN_SUPPLY_RATE 2.0f
 #define MAX_WELD 100.0f
-#define OXYGEN_CONSUMPTION 0.0001f
+#define OXYGEN_CONSUMPTION 0.00001f
 #define MAX_FIRE_VALUE 1000
+#define FIRE_START_VALUE 10
 
 namespace DCS
 {
@@ -70,7 +71,7 @@ namespace DCS
 		std::vector<StaticEntity>staticEntities;
 		std::vector<MobileEntity*>mobileEntities;
 		bool onFire = false;
-		int fire = 0;
+		double fire = 0;
 		int sizeX;
 		int sizeY;
 		Room*up;
