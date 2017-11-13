@@ -207,20 +207,27 @@ DCS::Ship::Ship()
 
 	Room* engineering = new Room(Point(90, 10), bridgeSilvete, e, Room::RoomType::Engineering);
 
+	Room* lifeSupport = new Room(Point(90, 95), bridgeSilvete, e, Room::RoomType::LifeSupport, .03);
+
 
 	MobileEntity*entity = new MobileEntity(bridge, Point(10, 10), MobileEntity::Engineer);
 	MobileEntity*entity1 = new MobileEntity(bridge, Point(30, 10), MobileEntity::Marine);
+	MobileEntity*entity2 = new MobileEntity(lifeSupport, Point(10, 10), MobileEntity::Engineer);
 	bridge->setRight(corridor, corridor->position+Point(0,10)-bridge->position);
 	corridor->setLeft(bridge, DCS::Point(0, 10));
 	corridor->setRight(engineering, DCS::Point(40, 10));
 	engineering->setLeft(corridor,DCS::Point(0,25));
+	engineering->setDown(lifeSupport, Point(20, 85));
+	lifeSupport->setUp(engineering, Point(20, 0));
 	bridge->addEntity(entity);
 	bridge->addEntity(entity1);
 	rooms.push_back(bridge);
 	rooms.push_back(corridor);
 	rooms.push_back(engineering);
+	rooms.push_back(lifeSupport);
 	mobileEntities.push_back(entity);
 	mobileEntities.push_back(entity1);
+	mobileEntities.push_back(entity2);
 }
 
 DCS::Ship::~Ship()
@@ -428,6 +435,8 @@ void DCS::Room::extinguish(float ammount)
 {
 	if (fire > 0)
 		fire =max(fire- ammount,0);
+	if (fire == 0)
+		onFire = false;
 }
 
 DCS::Room::RoomType DCS::Room::whatType()
@@ -454,7 +463,13 @@ double DCS::Room::supplyOxygen(double value)
 
 double DCS::Room::generateOxygen()
 {
-	return oxygenGeneration;
+	if (state == Operational)
+		return oxygenGeneration;
+	else
+		if (state == Damaged)
+			return oxygenGeneration * DAMAGE_EFFICENCY_MULTIPLIER;
+		else
+			return 0;
 }
 
 DCS::Point DCS::operator+(const Point & left, const Point & right)
@@ -512,7 +527,7 @@ DCS::Room * DCS::MobileEntity::update()
 		if (type == Engineer)
 		{
 			if (currentRoom->isOnFire())
-				currentRoom->extinguish(1);
+				currentRoom->extinguish(EXTINGUISH_CONSTANT);
 			else
 				currentRoom->repair(1);
 		}

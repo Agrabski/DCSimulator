@@ -237,7 +237,7 @@ void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
 		IDWriteTextFormat*c;
 		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
 		t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
-		wchar_t *buffer = new wchar_t[50];
+		wchar_t *buffer = new wchar_t[100];
 		swprintf(buffer, L"FIRE!");
 		context->DrawText(buffer, 5, c, D2D1::RectF(position.first+100, position.second, position.first + sizeX, position.second + 10), brush);
 		swprintf(buffer, L"Room - Fire - Functionality - Oxygen");
@@ -292,6 +292,8 @@ wchar_t * DCS::enumToString(Room::RoomType t)
 		return L"Engineering";
 	case DCS::Room::Corridor:
 		return L"Corridor";
+	case DCS::Room::LifeSupport:
+		return  L"Life Support";
 	}
 }
 
