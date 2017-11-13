@@ -233,25 +233,25 @@ void DCS::Room::update()
 		damage(FIRE_DAMAGE_RATE*fire);
 		oxygenLevel -= fire*OXYGEN_CONSUMPTION;
 		if(fire<MAX_FIRE_VALUE)
-			fire = FIRE_SPREAD_MODIFIER*fire;
+			fire +=FIRE_SPREAD_MODIFIER*fire;
 		if(fire>MIN_FIRE_VALUE+ rand()%FIRE_SPREAD_CHANCE)
 			switch (rand() % 4)
 			{
 			case 0:
 				if (left != nullptr)
-					left->setOnFire();
+					left->setOnFire(log(fire/10)/10.0);
 				break;
 			case 1:
 				if (right != nullptr)
-					right->setOnFire();
+					right->setOnFire(log(fire/10)/10.0);
 				break;
 			case 2:
 				if (down != nullptr)
-					down->setOnFire();
+					down->setOnFire(log(fire/10)/10.0);
 				break;
 			case 3:
 				if (up != nullptr)
-					up->setOnFire();
+					up->setOnFire(log(fire/10)/10.0);
 				break;
 			}
 	}
@@ -386,7 +386,17 @@ void DCS::Room::setOnFire()
 {
 	if (oxygenLevel > 1.1* MIN_OXYGEN_TO_FIRE)
 	{
-		fire += FIRE_START_VALUE;
+		fire = min(max(FIRE_START_VALUE, fire), MAX_FIRE_VALUE);
+		onFire = true;
+
+	}
+}
+
+void DCS::Room::setOnFire(double value)
+{
+	if (oxygenLevel > 1.1* MIN_OXYGEN_TO_FIRE)
+	{
+		fire = min(fire+value, MAX_FIRE_VALUE);
 		onFire = true;
 
 	}

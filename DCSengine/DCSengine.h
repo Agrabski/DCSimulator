@@ -2,8 +2,8 @@
 #include <vector>
 #include <unordered_map>
 #define REPAIR_SPEED 1.0f
-#define FIRE_DAMAGE_RATE 0.001f
-#define FIRE_SPREAD_MODIFIER 1.001f
+#define FIRE_DAMAGE_RATE 0.0005f
+#define FIRE_SPREAD_MODIFIER .001f
 #define FIRE_SPREAD_CHANCE 200
 #define MIN_FIRE_VALUE 500
 #define DEATH_CHANCE 1000
@@ -11,7 +11,7 @@
 #define MIN_OXYGEN_TO_FIRE 20.0f
 #define MAX_OXYGEN_SUPPLY_RATE 2.0f
 #define MAX_WELD 100.0f
-#define OXYGEN_CONSUMPTION 0.00001f
+#define OXYGEN_CONSUMPTION 0.00005f
 #define MAX_FIRE_VALUE 1000
 #define FIRE_START_VALUE 10
 
@@ -106,6 +106,7 @@ namespace DCS
 		std::pair<float,DamageState> currentState();
 		bool colides(Point p, MobileEntity* e);
 		void setOnFire();
+		void setOnFire(double value);
 		int fireValue();
 		void extinguish(float ammount);
 		RoomType whatType();
