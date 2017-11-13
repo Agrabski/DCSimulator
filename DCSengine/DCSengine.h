@@ -38,7 +38,7 @@ namespace DCS
 		std::vector<Room*>rooms;
 		std::vector<MobileEntity*>mobileEntities;
 		Room *findRoom(Point);
-
+		void update();
 		Ship();
 		~Ship();
 	};
@@ -84,13 +84,15 @@ namespace DCS
 		Point positionRight;
 		DamageState state;
 		float damageTransition=100.0f;
+		double oxygenGeneration = 0;
+		double desiredOxygen = MAX_OXYGEN;
 	public:
 		bool isOnFire();
 		Point position;
 		std::vector<Point>silvete;
 		enum RoomType { Bridge, Engineering, Corridor, LifeSupport };
 		void update();
-		Room(Point position, std::vector<Point>Silvete, std::vector<StaticEntity>entities, RoomType type);
+		Room(Point position, std::vector<Point>Silvete, std::vector<StaticEntity>entities, RoomType type, double OxygenGeneration = 0);
 		void setUp(Room*, Point);
 		void setDown(Room*, Point);
 		void setLeft(Room*, Point);
@@ -111,6 +113,9 @@ namespace DCS
 		void extinguish(float ammount);
 		RoomType whatType();
 		int currentOxygenLevel();
+		void setDesiredOxygen(double);
+		double supplyOxygen(double value);
+		double generateOxygen();
 	private:
 		RoomType type;
 

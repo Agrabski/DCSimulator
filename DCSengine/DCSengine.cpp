@@ -14,17 +14,7 @@ bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
 
 void DCS::Game::gameTick()
 {
-	for (std::vector<MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
-	{
-		Room* tmp = (*i)->location();
-		if (tmp != (*i)->update())
-		{
-			tmp->removeEntity(*i);
-			(*i)->location()->addEntity(*i);
-		}
-	}
-	for (std::vector<Room*>::iterator i = ship.rooms.begin(); i != ship.rooms.end(); i++)
-		(*i)->update();
+	ship.update();
 }
 
 
@@ -166,6 +156,32 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 	return nullptr;
 }
 
+void DCS::Ship::update()
+{
+	double oxygen = 0.0;
+
+	for each (Room* var in rooms)
+	{
+		oxygen += var->generateOxygen();
+	}
+	for each (Room* var in rooms)
+	{
+		oxygen = var->supplyOxygen(oxygen);
+	}
+
+	for (std::vector<MobileEntity*>::iterator i = mobileEntities.begin(); i != mobileEntities.end(); i++)
+	{
+		Room* tmp = (*i)->location();
+		if (tmp != (*i)->update())
+		{
+			tmp->removeEntity(*i);
+			(*i)->location()->addEntity(*i);
+		}
+	}
+	for (std::vector<Room*>::iterator i = rooms.begin(); i != rooms.end(); i++)
+		(*i)->update();
+}
+
 DCS::Ship::Ship()
 {
 	srand((unsigned int)time(NULL));
@@ -257,12 +273,13 @@ void DCS::Room::update()
 	}
 }
 
-DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEntity> entities, RoomType type)
+DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEntity> entities, RoomType type, double OxygenGeneration)
 {
 	this->position = position;
 	this->silvete = Silvete;
 	staticEntities = entities;
 	this->type = type;
+	oxygenGeneration = OxygenGeneration;
 }
 
 void DCS::Room::setUp(Room *room, Point connection)
@@ -421,6 +438,23 @@ DCS::Room::RoomType DCS::Room::whatType()
 int DCS::Room::currentOxygenLevel()
 {
 	return oxygenLevel;
+}
+
+void DCS::Room::setDesiredOxygen(double value)
+{
+	desiredOxygen = max(0, min(MAX_OXYGEN, value));
+}
+
+double DCS::Room::supplyOxygen(double value)
+{
+	double tmp = oxygenLevel;
+	oxygenLevel = max(0, min(desiredOxygen, oxygenLevel + value));
+	return oxygenLevel - tmp;
+}
+
+double DCS::Room::generateOxygen()
+{
+	return oxygenGeneration;
 }
 
 DCS::Point DCS::operator+(const Point & left, const Point & right)
