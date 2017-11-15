@@ -501,6 +501,24 @@ double DCS::Room::generateOxygen()
 			return 0;
 }
 
+DCS::MobileEntity * DCS::Room::findEntity(Point p)
+{
+	for (std::vector<DCS::MobileEntity*>::iterator i = mobileEntities.begin(); i != mobileEntities.end(); i++)
+		if (magnitude((*i)->position - p) < 20)
+		{
+			return *i;
+		}
+}
+
+DCS::MobileEntity * DCS::Room::findEntity(Point p, MobileEntity *t)
+{
+	for (std::vector<DCS::MobileEntity*>::iterator i = mobileEntities.begin(); i != mobileEntities.end(); i++)
+		if (magnitude((*i)->position - p) < 20&&t!=*i)
+		{
+			return *i;
+		}
+}
+
 DCS::Point DCS::operator+(const Point & left, const Point & right)
 {
 	return Point(left.first + right.first, left.second + right.second);
@@ -547,10 +565,34 @@ void DCS::MobileEntity::findPath()
 DCS::Room * DCS::MobileEntity::update()
 {
 	if (currentRoom->isOnFire())
-		if (currentRoom->fireValue()*(rand() % 3) > DEATH_CHANCE&&health!=Dead)
+		if (currentRoom->fireValue()*(rand() % 100) > DEATH_CHANCE&&health!=Dead)
 			health = (Status)(health + 1);
 	if (health != Nominal)
 		return currentRoom;
+
+	if (tmpDestination.second)
+	{
+		if (!currentRoom->colides(position + DCS::Point((tmpDestination.first.first - position.first) > 0 ? 1 : ((tmpDestination.first.first - position.first) == 0 ? 0 : -1), (tmpDestination.first.second - position.second) > 0 ? 1 : ((tmpDestination.first.second - position.second) == 0 ? 0 : -1)), this))
+			position = position + DCS::Point((tmpDestination.first.first - position.first) > 0 ? 1 : ((tmpDestination.first.first - position.first) == 0 ? 0 : -1), (tmpDestination.first.second - position.second) > 0 ? 1 : ((tmpDestination.first.second - position.second) == 0 ? 0 : -1));
+		else
+			if (!currentRoom->colides(tmpDestination.first, this))
+				if (!currentRoom->colides(position + DCS::Point(2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(2, 0)).first, (position + DCS::Point(2, 0)).second))
+					position = position + DCS::Point(2, 0);
+				else
+					if (!currentRoom->colides(position + DCS::Point(0, 2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, 2)).first, (position + DCS::Point(0, 2)).second))
+						position = position + DCS::Point(0, 2);
+					else
+						if (!currentRoom->colides(position + DCS::Point(-2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(-2, 0)).first, (position + DCS::Point(-2, 0)).second))
+							position = position + DCS::Point(-2, 0);
+						else
+							if (!currentRoom->colides(position + DCS::Point(0, -2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, -2)).first, (position + DCS::Point(0, -2)).second))
+								position = position + DCS::Point(0, -2);
+		if (position == tmpDestination.first)
+			tmpDestination.second = false;
+
+		return currentRoom;
+	}
+
 	if (destination.second == currentRoom&&position == destination.first)
 	{
 		if (type == Engineer)
@@ -568,18 +610,25 @@ DCS::Room * DCS::MobileEntity::update()
 		if (!currentRoom->colides(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)), this))
 			position = position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1));
 		else
-			if (!currentRoom->colides(destination.first, this))
-				if (!currentRoom->colides(position + DCS::Point(2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(2, 0)).first, (position + DCS::Point(2, 0)).second))
-					position = position + DCS::Point(2, 0);
-				else
-					if (!currentRoom->colides(position + DCS::Point(0, 2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, 2)).first, (position + DCS::Point(0, 2)).second))
-						position = position + DCS::Point(0, 2);
-					else
-						if (!currentRoom->colides(position + DCS::Point(-2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(-2, 0)).first, (position + DCS::Point(-2, 0)).second))
-							position = position + DCS::Point(-2, 0);
-						else
-							if (!currentRoom->colides(position + DCS::Point(0, -2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, -2)).first, (position + DCS::Point(0, -2)).second))
-								position = position + DCS::Point(0, -2);
+			if (magnitude(destination.first - position) < 20)
+				destination.first = position;
+			else
+				currentRoom->findEntity(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)),this)
+				->move(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)));
+
+
+			//if (!currentRoom->colides(destination.first, this))
+			//	if (!currentRoom->colides(position + DCS::Point(2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(2, 0)).first, (position + DCS::Point(2, 0)).second))
+			//		position = position + DCS::Point(2, 0);
+			//	else
+			//		if (!currentRoom->colides(position + DCS::Point(0, 2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, 2)).first, (position + DCS::Point(0, 2)).second))
+			//			position = position + DCS::Point(0, 2);
+			//		else
+			//			if (!currentRoom->colides(position + DCS::Point(-2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(-2, 0)).first, (position + DCS::Point(-2, 0)).second))
+			//				position = position + DCS::Point(-2, 0);
+			//			else
+			//				if (!currentRoom->colides(position + DCS::Point(0, -2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, -2)).first, (position + DCS::Point(0, -2)).second))
+			//					position = position + DCS::Point(0, -2);
 
 
 	}
@@ -596,7 +645,12 @@ DCS::Room * DCS::MobileEntity::update()
 			tmp = findDoor(path[0]);
 		}
 		Room*prev=currentRoom;
-		position = position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1));
+		if (!currentRoom->colides(position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1)), this))
+			position = position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1));
+		else
+			currentRoom->findEntity(position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1)),this)
+				->move(position + DCS::Point(position + DCS::Point((tmp.first - position.first) > 0 ? 1 : ((tmp.first - position.first) == 0 ? 0 : -1), (tmp.second - position.second) > 0 ? 1 : ((tmp.second - position.second) == 0 ? 0 : -1))));
+
 		if (position == tmp)
 		{
 			currentRoom = path[0];
@@ -633,6 +687,18 @@ DCS::Room * DCS::MobileEntity::location()
 void DCS::MobileEntity::changeDestination(std::pair<Point, Room*> d)
 {
 	destination = d;
+}
+
+void DCS::MobileEntity::move(Point contestedPoint)
+{
+	for (int distance = 10; distance < 200; distance++)
+		for (int x = -1; x <= 1; x++)
+			for (int y = -1; y <= 1; y++)
+				if (magnitude(position + DCS::Point(x*distance, y*distance) - contestedPoint) > 15)
+				{
+					tmpDestination = std::pair<DCS::Point, bool>(position + DCS::Point(x*distance, y*distance), true);
+					return;
+				}
 }
 
 DCS::Room * DCS::StaticEntity::update()

@@ -243,6 +243,7 @@ void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEnt
 			context->DrawLine(D2D1::Point2F(p1.first, p1.second), D2D1::Point2F(p2.first, p2.second), brush);
 			p1 = p2;
 		}
+		brush->Release();
 	}
 }
 

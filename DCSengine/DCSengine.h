@@ -1,18 +1,18 @@
 ﻿#pragma once
 #include <vector>
 #include <unordered_map>
+#define MAX_FIRE_VALUE 1000
 #define REPAIR_SPEED 1.0f
 #define FIRE_DAMAGE_RATE 0.0005f
 #define FIRE_SPREAD_MODIFIER .001f
 #define FIRE_SPREAD_CHANCE 200
 #define MIN_FIRE_VALUE 500
-#define DEATH_CHANCE 1000
+#define DEATH_CHANCE 95*MAX_FIRE_VALUE
 #define MAX_OXYGEN 100.0f
 #define MIN_OXYGEN_TO_FIRE 20.0f
 #define MAX_OXYGEN_SUPPLY_RATE 2.0f
 #define MAX_WELD 100.0f
 #define OXYGEN_CONSUMPTION 0.00005f
-#define MAX_FIRE_VALUE 1000
 #define FIRE_START_VALUE 10
 #define DAMAGE_EFFICENCY_MULTIPLIER .5
 #define EXTINGUISH_CONSTANT .5
@@ -120,6 +120,8 @@ namespace DCS
 		void setDesiredOxygen(double);
 		double supplyOxygen(double value);
 		double generateOxygen();
+		MobileEntity*findEntity(Point);
+		MobileEntity*findEntity(Point,MobileEntity*);
 	private:
 		RoomType type;
 
@@ -142,6 +144,7 @@ namespace DCS
 	public:
 		enum Status { Nominal,Wounded,Dead };
 	private:
+		std::pair<Point, bool>tmpDestination = std::pair<Point, bool>(Point(0, 0), false);
 		Status health = Nominal;
 		std::vector<Room*>path;
 		Point findDoor(Room*next);
@@ -160,6 +163,7 @@ namespace DCS
 		std::pair<Point, Room*> destination;
 		Room*location();
 		void changeDestination(std::pair<Point, Room*> d);
+		void move(Point contestedPoint);
 	};
 
 	class StaticEntity :public Entity
