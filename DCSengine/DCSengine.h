@@ -30,6 +30,7 @@ namespace DCS
 	class Entity;
 	class MobileEntity;
 	class StaticEntity;
+	class Objective;
 
 	enum DamageState {Operational, Damaged, OutOfAction, Destroyed};
 
@@ -177,5 +178,13 @@ namespace DCS
 		std::vector<MobileEntity*>selected;
 		Ship ship;
 		void gameTick();
+	};
+
+	class Objective
+	{
+		const Game* gameReference;
+	public:
+		virtual bool isFullfilled() = 0;
+		virtual bool isFailed() = 0;
 	};
 }

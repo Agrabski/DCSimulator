@@ -622,6 +622,7 @@ DCS::MobileEntity::MobileEntity(Room * current, Point location, MobileEntityType
 	currentRoom = current;
 	position = location;
 	this->type = type;
+	destination = std::pair<Point, Room*>(location, current);
 }
 
 DCS::Room * DCS::MobileEntity::location()
