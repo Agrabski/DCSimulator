@@ -99,7 +99,8 @@ bool DCSdirectX11Main::Render()
 	context->OMSetRenderTargets(1, targets, m_deviceResources->GetDepthStencilView());
 
 	// Clear the back buffer and depth stencil view.
-	context->ClearRenderTargetView(m_deviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::CornflowerBlue);
+	float tmp[4] = { .18, .208, .38 ,1};
+	context->ClearRenderTargetView(m_deviceResources->GetBackBufferRenderTargetView(), tmp);
 	context->ClearDepthStencilView(m_deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	// Render the scene objects.
@@ -218,8 +219,30 @@ void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEnt
 		default:
 			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkBlue, 1.0f), &brush);
 		}
-		context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5), brush);
+		if(entity->currentStatus()==entity->Nominal)
+		context->FillEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5), brush);
+		else
+			context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((entity->position + shipPosition + entity->currentRoom->position).first, (entity->position + shipPosition + entity->currentRoom->position).second), 5, 5), brush);
 		brush->Release();
+	}
+	if (entity->selected)
+	{
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+
+		auto t = entity->currentPath();
+		Point p1=entity->position+entity->currentRoom->position+shipPosition;
+		Point p2 =t.size()!=0? entity->currentRoom->findDoor(t[0]) + entity->currentRoom->position + shipPosition: entity->destination.first + entity->currentRoom->position+ shipPosition;
+		context->DrawLine(D2D1::Point2F(p1.first, p1.second), D2D1::Point2F(p2.first, p2.second), brush);
+		p1 = p2;
+		for (int i=0;i<t.size();i++)
+		{
+			if (i + 1 == t.size())
+				p2 = entity->destination.first + entity->destination.second->position + shipPosition;
+			else
+				p2 = t[i]->findDoor(t[i + 1]) + t[i]->position + shipPosition;
+			context->DrawLine(D2D1::Point2F(p1.first, p1.second), D2D1::Point2F(p2.first, p2.second), brush);
+			p1 = p2;
+		}
 	}
 }
 
@@ -227,12 +250,19 @@ void DCS::Dx11Engine::FireManager::render(ID2D1DeviceContext * context)
 {
 	if (!fires.empty()||remainCount>0)
 	{
+		oddFrame++;
 		remainCount--;
 		ID2D1SolidColorBrush *brush;
-		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+		ID2D1SolidColorBrush *brush1;
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 1.0f), &brush1);
+
+		if(oddFrame%60<30)
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+		else
+			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
 		int sizeX = 250;
 		int sizeY = (fires.size() + 2) * 20;
-		context->DrawRectangle(D2D1::RectF(position.first, position.second, position.first + sizeX, position.second + sizeY), brush);
+		context->FillRectangle(D2D1::RectF(position.first, position.second, position.first + sizeX, position.second + sizeY), brush1);
 		IDWriteFactory* t;
 		IDWriteTextFormat*c;
 		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));

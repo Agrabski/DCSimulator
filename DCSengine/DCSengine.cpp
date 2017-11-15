@@ -140,9 +140,24 @@ int DCS::MobileEntity::findRoute(std::pair<std::vector<DCS::Room*>, int>& currPa
 	return currentBest;
 }
 
+std::vector<DCS::Room*> DCS::MobileEntity::currentPath()
+{
+	return path;
+}
+
 DCS::MobileEntity::Status DCS::MobileEntity::currentStatus()
 {
 	return health;
+}
+
+std::vector<DCS::Room*>::iterator DCS::MobileEntity::pathIterator()
+{
+	return path.begin();
+}
+
+std::vector<DCS::Room*>::iterator DCS::MobileEntity::end()
+{
+	return path.end();
 }
 
 DCS::Room * DCS::Ship::findRoom(Point p)
@@ -237,6 +252,20 @@ DCS::Ship::~Ship()
 
 	for (int i = 0; i < mobileEntities.size(); i++)
 		delete mobileEntities[i];
+}
+
+DCS::Point DCS::Room::findDoor(Room * next)
+{
+	std::pair<Room*, Point> k;
+	if ((k = leftDoor()).first == next)
+		return k.second;
+	if ((k = rightDoor()).first == next)
+		return k.second;
+	if ((k = downDoor()).first == next)
+		return k.second;
+	if ((k = upDoor()).first == next)
+		return k.second;
+	throw std::exception();
 }
 
 bool DCS::Room::isOnFire()

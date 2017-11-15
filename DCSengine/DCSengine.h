@@ -89,6 +89,7 @@ namespace DCS
 		double oxygenGeneration = 0;
 		double desiredOxygen = MAX_OXYGEN;
 	public:
+		Point findDoor(Room*next);
 		bool isOnFire();
 		Point position;
 		std::vector<Point>silvete;
@@ -146,7 +147,10 @@ namespace DCS
 		void findPath();
 		int findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * destination, DCS::Point door, DCS::Point position, std::unordered_map<Room*, std::pair<DCS::Point, int>>*);
 	public:
+		std::vector<Room*> currentPath();
 		Status currentStatus();
+		std::vector<DCS::Room*>::iterator pathIterator();
+		std::vector<DCS::Room*>::iterator end();
 		bool selected = false;
 		//returns pointer to the current room
 		virtual Room* update();

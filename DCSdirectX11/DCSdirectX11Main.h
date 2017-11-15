@@ -16,6 +16,7 @@ namespace DCS
 		unsigned int oddFrame = 0;
 		class FireManager
 		{
+			int oddFrame = 0;
 			int remainCount = 0;
 			std::vector<Room*>fires;
 			Point position;
