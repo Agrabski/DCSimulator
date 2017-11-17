@@ -5,6 +5,7 @@
 #include "DCSdirectX11Main.h"
 #include "Common\StepTimer.h"
 #include <chrono>
+#include <xaudio2.h>
 
 namespace DCSdirectX11
 {

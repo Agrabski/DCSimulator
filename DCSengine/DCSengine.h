@@ -177,11 +177,12 @@ namespace DCS
 	class Game
 	{
 	protected:
-
+		bool isPaused = false;
 	public:
 		std::vector<MobileEntity*>selected;
 		Ship ship;
 		void gameTick();
+		void switchPause();
 	};
 
 	class Objective

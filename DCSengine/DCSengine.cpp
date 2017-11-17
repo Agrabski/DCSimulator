@@ -14,7 +14,13 @@ bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
 
 void DCS::Game::gameTick()
 {
-	ship.update();
+	if(!isPaused)
+		ship.update();
+}
+
+void DCS::Game::switchPause()
+{
+	isPaused = !isPaused;
 }
 
 

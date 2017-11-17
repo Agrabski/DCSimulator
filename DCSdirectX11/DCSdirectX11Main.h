@@ -5,6 +5,8 @@
 #include "Content\Sample3DSceneRenderer.h"
 #include "Content\SampleFpsTextRenderer.h"
 #include"../DCSengine/DCSengine.h"
+#include <Mmsystem.h>
+#include <mciapi.h>
 
 namespace DCS
 {
@@ -26,7 +28,38 @@ namespace DCS
 			void add(Room* r);
 			void remove(Room*r);
 		}fManager = FireManager(Point(500, 150));
+
+		class EscMenu
+		{
+			float color[4] = { .18, .208, .38 ,1 };
+			int sizeX;
+			int sizeY;
+			enum Buttons {Resume,ReturnToMain,Settings};
+			class Button
+			{
+				Buttons type;
+			public:
+				Button(Point,Buttons);
+				~Button();
+				void render(ID2D1DeviceContext * context) const;
+			private:
+				static wchar_t*enumToChar(Buttons);
+				Point position;
+				int sizeX;
+				int sizeY;
+			};
+			Point position;
+		public:
+			enum PressResult {None, ReturnToMain,Resume};
+			EscMenu(Point p);
+			PressResult OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+			void render(ID2D1DeviceContext * context) const;
+		}escMenu = EscMenu(Point(100, 100));
+
 	public:
+		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+		void OnPointerReleased(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+		void OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args);
 		Point shipPosition = Point(100, 100);
 		void gameRender(ID2D1DeviceContext * context);
 		void renderRoom(ID2D1DeviceContext * context, Room&room);

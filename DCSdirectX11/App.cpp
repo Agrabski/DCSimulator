@@ -203,57 +203,16 @@ void App::OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args)
 
 void DCSdirectX11::App::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
-	duration = std::chrono::steady_clock::now().time_since_epoch().count();
+	m_main->game.OnPointerPressed(sender, args);
 }
 
 void DCSdirectX11::App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
-	using namespace DCS;
-	DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
-
-	if (VirtualKeyModifiers::Shift == args->KeyModifiers)
-		for (std::vector<DCS::MobileEntity*>::iterator i = m_main->game.ship.mobileEntities.begin(); i != m_main->game.ship.mobileEntities.end(); i++)
-			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), m_main->game.shipPosition) - position) < 30)
-			{
-				(*i)->selected = true;
-				m_main->game.selected.emplace_back(*i);
-				break;
-			}
-
-	if (VirtualKeyModifiers::Control== args->KeyModifiers)
-	{
-		if (VirtualKeyModifiers::Shift != args->KeyModifiers)
-		{
-			for (int i = 0; i < m_main->game.selected.size(); i++)
-				m_main->game.selected[i]->selected = false;
-		}
-		m_main->game.selected.clear();
-		//long press
-		for (std::vector<DCS::MobileEntity*>::iterator i = m_main->game.ship.mobileEntities.begin(); i != m_main->game.ship.mobileEntities.end(); i++)
-			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), m_main->game.shipPosition) - position) < 15)
-			{
-				(*i)->selected = true;
-				m_main->game.selected.emplace_back(*i);
-				break;
-			}
-	}
-	else
-	{
-		//short press
-
-		if (VirtualKeyModifiers::Shift != args->KeyModifiers)
-		{
-			Room *tmp = m_main->game.ship.findRoom(position - m_main->game.shipPosition);
-			if (tmp != nullptr)
-				for (int i = 0; i < m_main->game.selected.size(); i++)
-					m_main->game.selected[i]->changeDestination( std::pair<DCS::Point, DCS::Room*>(position - m_main->game.shipPosition - tmp->position, tmp));
-		}
-	}
+	m_main->game.OnPointerReleased(sender, args);
 }
 
 void DCSdirectX11::App::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args)
 {
-	if (args->VirtualKey == VirtualKey::Space)
-		m_main->game.ship.rooms[0]->setOnFire();
+	m_main->game.OnButtonPress(sender, args);
 }
 
