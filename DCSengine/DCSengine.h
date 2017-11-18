@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <stdio.h>
 #include <unordered_map>
 #define MAX_FIRE_VALUE 1000
 #define REPAIR_SPEED 1.0f
@@ -31,6 +32,7 @@ namespace DCS
 	class MobileEntity;
 	class StaticEntity;
 	class Objective;
+	class Scenario;
 
 	enum DamageState {Operational, Damaged, OutOfAction, Destroyed};
 
@@ -185,11 +187,32 @@ namespace DCS
 		void switchPause();
 	};
 
+	class Scenario
+	{
+		Ship ship;
+		Objective* target;
+		std::ostream& operator<<(std::ostream&);
+		std::istream& operator>>(std::istream&);
+	public:
+		enum ScenarioResult {Continue,Lost,Won};
+		ScenarioResult scenarioTick();
+	};
+
 	class Objective
 	{
-		const Game* gameReference;
+	protected:
+		const Scenario* gameReference;
 	public:
+		Objective(Scenario*ref);
 		virtual bool isFullfilled() = 0;
 		virtual bool isFailed() = 0;
+	};
+
+	class Standard :Objective
+	{
+		std::vector <std::pair <Room*,DamageState>>RequieredRooms;
+	public:
+		virtual bool isFullfilled();
+		virtual bool isFailed();
 	};
 }

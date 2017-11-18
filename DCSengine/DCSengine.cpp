@@ -785,3 +785,19 @@ DCS::Door::Door(Room *r1, Point p1, Room *r2, Point p2)
 	firstSide = std::pair<Room*, Point>(r1, p1);
 	secondSide = std::pair<Room*, Point>(r2, p2);
 }
+
+DCS::Objective::Objective(Scenario * ref)
+{
+	gameReference = ref;
+}
+
+DCS::Scenario::ScenarioResult DCS::Scenario::scenarioTick()
+{
+	ship.update();
+	if (target->isFullfilled())
+		return Won;
+	if (target->isFailed())
+		return Lost;
+	return Continue;
+
+}

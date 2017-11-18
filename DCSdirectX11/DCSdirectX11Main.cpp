@@ -452,6 +452,7 @@ DCS::Dx11Engine::EscMenu::PressResult DCS::Dx11Engine::EscMenu::OnPointerPressed
 			return None;
 		}
 	}
+	return None;
 }
 
 void DCS::Dx11Engine::EscMenu::render(ID2D1DeviceContext * context) const
