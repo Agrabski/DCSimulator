@@ -2,6 +2,7 @@
 #include "DCSdirectX11Main.h"
 #include "Common\DirectXHelper.h"
 #include "../DCSengine/DCSengine.h"
+#include "Common\DeviceResources.h"
 
 using namespace DCSdirectX11;
 using namespace Windows::Foundation;
@@ -130,50 +131,70 @@ void DCSdirectX11Main::OnDeviceRestored()
 
 void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
+	if (isPaused)
+	{
+		switch (escMenu.OnPointerPressed(sender, args))
+		{
+		case DCS::Dx11Engine::EscMenu::ExitMenu:
+			isPaused = false;
+			break;
+		case DCS::Dx11Engine::EscMenu::None:
+			break;
+		case DCS::Dx11Engine::EscMenu::ReturnToMain:
+			Windows::ApplicationModel::Core::CoreApplication::Exit();
+
+
+		}
+	}
+	else
+	{
+		DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
+
+		if (Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers)
+			for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 30)
+				{
+					(*i)->selected = true;
+					selected.emplace_back(*i);
+					break;
+				}
+
+		if (Windows::System::VirtualKeyModifiers::Control == args->KeyModifiers)
+		{
+			if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
+			{
+				for (int i = 0; i < selected.size(); i++)
+					selected[i]->selected = false;
+			}
+			selected.clear();
+			//long press
+			for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 15)
+				{
+					(*i)->selected = true;
+					selected.emplace_back(*i);
+					break;
+				}
+		}
+		else
+		{
+			//short press
+
+			if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
+			{
+				Room *tmp = ship.findRoom(position - shipPosition);
+				if (tmp != nullptr)
+					for (int i = 0; i < selected.size(); i++)
+						selected[i]->changeDestination(std::pair<DCS::Point, DCS::Room*>(position - shipPosition - tmp->position, tmp));
+			}
+		}
+
+	}
 }
 
 void DCS::Dx11Engine::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
-	DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
 
-	if (Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers)
-		for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
-			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 30)
-			{
-				(*i)->selected = true;
-				selected.emplace_back(*i);
-				break;
-			}
-
-	if (Windows::System::VirtualKeyModifiers::Control == args->KeyModifiers)
-	{
-		if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
-		{
-			for (int i = 0; i < selected.size(); i++)
-				selected[i]->selected = false;
-		}
-		selected.clear();
-		//long press
-		for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
-			if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 15)
-			{
-				(*i)->selected = true;
-				selected.emplace_back(*i);
-				break;
-			}
-	}
-	else
-	{
-		//short press
-
-		if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
-		{
-			Room *tmp = ship.findRoom(position - shipPosition);
-			if (tmp != nullptr)
-				for (int i = 0; i < selected.size(); i++)
-					selected[i]->changeDestination(std::pair<DCS::Point, DCS::Room*>(position - shipPosition - tmp->position, tmp));
-		}
-	}
 }
 
 void DCS::Dx11Engine::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args)
@@ -200,6 +221,9 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 	for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
 		renderMobileEntity(context, *i);
 	fManager.render(context);
+	if (isPaused)
+		escMenu.render(context);
+
 	brush->Release();
 }
 
@@ -404,14 +428,41 @@ wchar_t * DCS::enumToString(DamageState t)
 DCS::Dx11Engine::EscMenu::EscMenu(Point p)
 {
 	position = p;
+	sizeX = 300;
+	sizeY = 700;
+	buttons.push_back(Button(Point(100, 50), Resume));
+	buttons.push_back(Button(Point(100, 100), Settings));
+	buttons.push_back(Button(Point(100, 150), Exit));
+
 }
 
-void DCS::Dx11Engine::EscMenu::render(ID2D1DeviceContext * context)
+DCS::Dx11Engine::EscMenu::PressResult DCS::Dx11Engine::EscMenu::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
+	for each (auto var in buttons)
+	{
+		switch (var.OnPointerPressed(sender, args, position))
+		{
+		case Null:
+			break;
+		case Resume:
+			return ExitMenu;
+		case Exit:
+			return ReturnToMain;
+		case Settings:
+			return None;
+		}
+	}
+}
+
+void DCS::Dx11Engine::EscMenu::render(ID2D1DeviceContext * context) const
 {
 	ID2D1SolidColorBrush *brush;
 	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &brush);
 	context->FillRectangle(D2D1::RectF(position.first,position.second,position.first+sizeX,position.second+sizeY),brush);
-
+	for each (auto var in buttons)
+	{
+		var.render(context,position);
+	}
 
 
 	brush->Release();
@@ -420,7 +471,53 @@ void DCS::Dx11Engine::EscMenu::render(ID2D1DeviceContext * context)
 DCS::Dx11Engine::EscMenu::Button::Button(Point p, Buttons t)
 {
 	position = p;
-	sizeX;
-	sizeY;
+	sizeX = 100;
+	sizeY = 20;
 	type = t;
+}
+
+void DCS::Dx11Engine::EscMenu::Button::render(ID2D1DeviceContext * context, Point offset) const
+{
+	Point tmp = position + offset;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF(tmp.first, tmp.second, tmp.first + sizeX, tmp.second + sizeY), background);
+	
+	
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer,enumToChar(type));
+	std::wstring k(buffer);
+	context->DrawText(buffer, k.size(), c, D2D1::RectF(tmp.first, tmp.second, tmp.first + sizeX, tmp.second +sizeY), text);
+
+	background->Release();
+	text->Release();
+
+}
+
+DCS::Dx11Engine::EscMenu::Buttons DCS::Dx11Engine::EscMenu::Button::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
+{
+	DCS::Point tmp = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y) - offset;
+	if (tmp.first > position.first&&tmp.second > position.second&&tmp.first < position.first + sizeX&&tmp.second < position.second + sizeY)
+		return type;
+	else
+		return Null;
+}
+
+wchar_t * DCS::Dx11Engine::EscMenu::Button::enumToChar(Buttons b)
+{
+	switch (b)
+	{
+	case Resume:
+		return L"Resume";
+	case Exit:
+		return L"Exit";
+	case Settings:
+		return L"Settings";
+	}
 }

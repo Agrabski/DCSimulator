@@ -31,30 +31,34 @@ namespace DCS
 
 		class EscMenu
 		{
-			float color[4] = { .18, .208, .38 ,1 };
+			float color[4] = { .0f, .0f, .0f ,1 };
 			int sizeX;
 			int sizeY;
-			enum Buttons {Resume,ReturnToMain,Settings};
+			enum Buttons {Resume,Exit,Settings,Null};
 			class Button
 			{
 				Buttons type;
 			public:
 				Button(Point,Buttons);
-				~Button();
-				void render(ID2D1DeviceContext * context) const;
+				~Button() = default;
+				void render(ID2D1DeviceContext * context, Point offset) const;
+				Buttons OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, Point offset);
 			private:
+				float textColor[4]= { .0f, .0f, .0f, 1 };
+				float color[4] = { 1.f, 1.f, 1.0f ,1 };
 				static wchar_t*enumToChar(Buttons);
 				Point position;
-				int sizeX;
-				int sizeY;
+				int sizeX=200;
+				int sizeY=100;
 			};
+			std::vector<Button> buttons;
 			Point position;
 		public:
-			enum PressResult {None, ReturnToMain,Resume};
+			enum PressResult {None, ReturnToMain,ExitMenu};
 			EscMenu(Point p);
 			PressResult OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 			void render(ID2D1DeviceContext * context) const;
-		}escMenu = EscMenu(Point(100, 100));
+		}escMenu = EscMenu(Point(600, 100));
 
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
