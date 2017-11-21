@@ -25,7 +25,7 @@ namespace DCS
 	Point operator+(const Point&left, const Point&right);
 	Point operator-(const Point&left, const Point&right);
 	bool operator<(const Point&left, const Point&right);
-	float magnitude(const Point&op);
+	double magnitude(const Point&op);
 
 	class Room;
 	class Entity;
@@ -34,7 +34,7 @@ namespace DCS
 	class Objective;
 	class Scenario;
 
-	enum DamageState {Operational, Damaged, OutOfAction, Destroyed};
+	enum DamageState { Operational, Damaged, OutOfAction, Destroyed };
 
 	class Ship
 	{
@@ -53,18 +53,18 @@ namespace DCS
 		std::pair<Room*, Point> firstSide;
 		std::pair<Room*, Point> secondSide;
 		bool isOpen = false;
-		float isWeldedShut = 0.0f;
+		double isWeldedShut = 0.0f;
 		bool works = true;
 	public:
 		std::pair<Room*, Point>otherSide(Room*curr);
-		bool weld(float amount);
-		void unweld(float amount);
+		bool weld(double amount);
+		void unweld(double amount);
 		//returns success state
 		bool open();
 		//returns success state
 		bool close();
 		bool isItOpen();
-		float isWelded();
+		double isWelded();
 		bool isOperational();
 		Door(Room*, Point, Room*, Point);
 	};
@@ -72,7 +72,7 @@ namespace DCS
 	class Room
 	{
 		bool PlayerHasVision;
-		float oxygenLevel=MAX_OXYGEN;
+		double oxygenLevel = MAX_OXYGEN;
 		std::vector<StaticEntity>staticEntities;
 		std::vector<MobileEntity*>mobileEntities;
 		bool onFire = false;
@@ -88,7 +88,7 @@ namespace DCS
 		Room*right;
 		Point positionRight;
 		DamageState state;
-		float damageTransition=100.0f;
+		double damageTransition = 100.0f;
 		double oxygenGeneration = 0;
 		double desiredOxygen = MAX_OXYGEN;
 	public:
@@ -109,21 +109,21 @@ namespace DCS
 		std::pair<Room*, Point>rightDoor();
 		std::pair<Room*, Point>downDoor();
 		std::pair<Room*, Point>upDoor();
-		void damage(float damage);
-		void repair(float amount);
-		std::pair<float,DamageState> currentState();
+		void damage(double damage);
+		void repair(double amount);
+		std::pair<double, DamageState> currentState();
 		bool colides(Point p, MobileEntity* e);
 		void setOnFire();
 		void setOnFire(double value);
 		int fireValue();
-		void extinguish(float ammount);
+		void extinguish(double ammount);
 		RoomType whatType();
 		int currentOxygenLevel();
 		void setDesiredOxygen(double);
 		double supplyOxygen(double value);
 		double generateOxygen();
 		MobileEntity*findEntity(Point);
-		MobileEntity*findEntity(Point,MobileEntity*);
+		MobileEntity*findEntity(Point, MobileEntity*);
 	private:
 		RoomType type;
 
@@ -133,7 +133,7 @@ namespace DCS
 	{
 	public:
 		//returns pointer to the current room
-		virtual Room* update()=0;
+		virtual Room* update() = 0;
 		Point position;
 		Room*currentRoom;
 	protected:
@@ -141,10 +141,10 @@ namespace DCS
 
 	};
 
-	class MobileEntity:public Entity
+	class MobileEntity :public Entity
 	{
 	public:
-		enum Status { Nominal,Wounded,Dead };
+		enum Status { Nominal, Wounded, Dead };
 	private:
 		std::pair<Point, bool>tmpDestination = std::pair<Point, bool>(Point(0, 0), false);
 		Status health = Nominal;
@@ -160,7 +160,7 @@ namespace DCS
 		bool selected = false;
 		//returns pointer to the current room
 		virtual Room* update();
-		enum MobileEntityType {Marine,Engineer,CrewMember,Boarder}type;
+		enum MobileEntityType { Marine, Engineer, CrewMember, Boarder }type;
 		MobileEntity(Room*current, Point location, MobileEntityType type);
 		std::pair<Point, Room*> destination;
 		Room*location();
@@ -189,30 +189,35 @@ namespace DCS
 
 	class Scenario
 	{
-		Ship ship;
+		Ship* ship;
 		Objective* target;
-		std::ostream& operator<<(std::ostream&);
-		std::istream& operator>>(std::istream&);
+		int gameTimer = 0;
 	public:
-		enum ScenarioResult {Continue,Lost,Won};
+		std::ofstream& operator<<(std::ofstream&);
+		std::ifstream& operator>>(std::ifstream&);
+		Scenario(Objective*objective, Ship * vessel);
+		Scenario(std::ifstream & file);
+		enum ScenarioResult { Continue, Lost, Won };
 		ScenarioResult scenarioTick();
 	};
 
 	class Objective
 	{
 	protected:
-		const Scenario* gameReference;
+		std::vector <std::pair <Room*, DamageState>>requieredRooms;
+		const Ship* gameReference;
 	public:
-		Objective(Scenario*ref);
-		virtual bool isFullfilled() = 0;
-		virtual bool isFailed() = 0;
+		Objective(Ship * ref);
+		virtual bool isFullfilled(int ticCount) = 0;
+		virtual bool isFailed(int ticCount) = 0;
 	};
 
-	class Standard :Objective
+	class Timed : Objective
 	{
-		std::vector <std::pair <Room*,DamageState>>RequieredRooms;
+		int ticsRemaining;
 	public:
-		virtual bool isFullfilled();
-		virtual bool isFailed();
+		Timed(std::vector <std::pair <Room*, DamageState>>reqRooms, Ship*ref, int tics);
+		virtual bool isFullfilled(int ticCount);
+		virtual bool isFailed(int ticCount);
 	};
 }

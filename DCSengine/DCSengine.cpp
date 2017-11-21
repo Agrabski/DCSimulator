@@ -24,7 +24,7 @@ void DCS::Game::switchPause()
 }
 
 
-bool pnpoly(std::vector<DCS::Point>vert, float testx, float testy)
+bool pnpoly(std::vector<DCS::Point>vert, double testx, double testy)
 {
 	int i, j;
 	bool c = false;
@@ -171,7 +171,7 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 	for (std::vector<Room*>::iterator i = rooms.begin(); i != rooms.end(); i++)
 	{
 		Point tmp = p - (*i)->position;
-		if (pnpoly((*i)->silvete, (float)tmp.first, (float)tmp.second))
+		if (pnpoly((*i)->silvete, (double)tmp.first, (double)tmp.second))
 			return *i;
 	}
 	return nullptr;
@@ -397,7 +397,7 @@ std::pair<DCS::Room*, DCS::Point> DCS::Room::upDoor()
 	return std::pair<Room*, Point>(up,positionUp);
 }
 
-void DCS::Room::damage(float damage)
+void DCS::Room::damage(double damage)
 {
 	if (state != Destroyed)
 	{
@@ -415,7 +415,7 @@ void DCS::Room::damage(float damage)
 	}
 }
 
-void DCS::Room::repair(float amount)
+void DCS::Room::repair(double amount)
 {
 		this->damageTransition += amount;
 		if (damageTransition >= 100.0f)
@@ -426,9 +426,9 @@ void DCS::Room::repair(float amount)
 		}
 }
 
-std::pair<float, DCS::DamageState> DCS::Room::currentState()
+std::pair<double, DCS::DamageState> DCS::Room::currentState()
 {
-	return std::pair<float, DCS::DamageState>(damageTransition,state);
+	return std::pair<double, DCS::DamageState>(damageTransition,state);
 }
 
 bool DCS::Room::colides(Point p, MobileEntity* e)
@@ -463,10 +463,10 @@ void DCS::Room::setOnFire(double value)
 
 int DCS::Room::fireValue()
 {
-	return fire;
+	return (int)fire;
 }
 
-void DCS::Room::extinguish(float ammount)
+void DCS::Room::extinguish(double ammount)
 {
 	if (fire > 0)
 		fire =max(fire- ammount,0);
@@ -481,7 +481,7 @@ DCS::Room::RoomType DCS::Room::whatType()
 
 int DCS::Room::currentOxygenLevel()
 {
-	return oxygenLevel;
+	return (int)oxygenLevel;
 }
 
 void DCS::Room::setDesiredOxygen(double value)
@@ -540,9 +540,9 @@ bool DCS::operator<(const Point & left, const Point & right)
 	return sqrt(left.first*left.first + left.second*left.second) < sqrt(right.first*right.first + right.second*right.second);
 }
 
-float DCS::magnitude(const Point & op)
+double DCS::magnitude(const Point & op)
 {
-	return (float)sqrt(op.first*op.first + op.second*op.second);
+	return (double)sqrt(op.first*op.first + op.second*op.second);
 }
 
 DCS::Point DCS::MobileEntity::findDoor(Room * next)
@@ -621,22 +621,6 @@ DCS::Room * DCS::MobileEntity::update()
 			else
 				currentRoom->findEntity(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)),this)
 				->move(position + DCS::Point((destination.first.first - position.first) > 0 ? 1 : ((destination.first.first - position.first) == 0 ? 0 : -1), (destination.first.second - position.second) > 0 ? 1 : ((destination.first.second - position.second) == 0 ? 0 : -1)));
-
-
-			//if (!currentRoom->colides(destination.first, this))
-			//	if (!currentRoom->colides(position + DCS::Point(2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(2, 0)).first, (position + DCS::Point(2, 0)).second))
-			//		position = position + DCS::Point(2, 0);
-			//	else
-			//		if (!currentRoom->colides(position + DCS::Point(0, 2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, 2)).first, (position + DCS::Point(0, 2)).second))
-			//			position = position + DCS::Point(0, 2);
-			//		else
-			//			if (!currentRoom->colides(position + DCS::Point(-2, 0), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(-2, 0)).first, (position + DCS::Point(-2, 0)).second))
-			//				position = position + DCS::Point(-2, 0);
-			//			else
-			//				if (!currentRoom->colides(position + DCS::Point(0, -2), this) && pnpoly(currentRoom->silvete, (position + DCS::Point(0, -2)).first, (position + DCS::Point(0, -2)).second))
-			//					position = position + DCS::Point(0, -2);
-
-
 	}
 	if (path.size() != 0 && (destination.second == path[path.size() - 1]))
 	{
@@ -700,7 +684,7 @@ void DCS::MobileEntity::move(Point contestedPoint)
 	for (int distance = 10; distance < 200; distance++)
 		for (int x = -1; x <= 1; x++)
 			for (int y = -1; y <= 1; y++)
-				if (magnitude(position + DCS::Point(x*distance, y*distance) - contestedPoint) > 15)
+				if (magnitude(position + DCS::Point(x*distance, y*distance) - contestedPoint) > 15&&pnpoly(currentRoom->silvete,(position + DCS::Point(x*distance, y*distance)).first, (position + DCS::Point(x*distance, y*distance)).second))
 				{
 					tmpDestination = std::pair<DCS::Point, bool>(position + DCS::Point(x*distance, y*distance), true);
 					return;
@@ -721,7 +705,7 @@ std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr)
 	throw std::runtime_error("Requested room is not connected");
 }
 
-bool DCS::Door::weld(float amount)
+bool DCS::Door::weld(double amount)
 {
 	if (close())
 		if (isWeldedShut < MAX_WELD)
@@ -732,7 +716,7 @@ bool DCS::Door::weld(float amount)
 	return false;
 }
 
-void DCS::Door::unweld(float amount)
+void DCS::Door::unweld(double amount)
 {
 	if (isWeldedShut > 0)
 		isWeldedShut -= amount;
@@ -770,7 +754,7 @@ bool DCS::Door::isItOpen()
 	return isOpen;
 }
 
-float DCS::Door::isWelded()
+double DCS::Door::isWelded()
 {
 	return isWeldedShut;
 }
@@ -786,18 +770,48 @@ DCS::Door::Door(Room *r1, Point p1, Room *r2, Point p2)
 	secondSide = std::pair<Room*, Point>(r2, p2);
 }
 
-DCS::Objective::Objective(Scenario * ref)
+DCS::Objective::Objective(Ship * ref)
 {
 	gameReference = ref;
 }
 
+DCS::Scenario::Scenario(Objective * objective, Ship * vessel)
+{
+	ship = vessel;
+	target = objective;
+}
+
+DCS::Scenario::Scenario(std::ifstream & file)
+{
+}
+
 DCS::Scenario::ScenarioResult DCS::Scenario::scenarioTick()
 {
-	ship.update();
-	if (target->isFullfilled())
+	gameTimer++;
+	ship->update();
+	if (target->isFullfilled(gameTimer))
 		return Won;
-	if (target->isFailed())
+	if (target->isFailed(gameTimer))
 		return Lost;
 	return Continue;
 
+}
+
+DCS::Timed::Timed(std::vector<std::pair<DCS::Room*, DCS::DamageState>> reqRooms, Ship *ref, int tics) : Objective(ref)
+{
+	ticsRemaining = tics;
+	requieredRooms = reqRooms;
+}
+
+bool DCS::Timed::isFullfilled(int ticCount)
+{
+	return ticsRemaining < ticCount;
+}
+
+bool DCS::Timed::isFailed(int ticCount)
+{
+	for (auto i = requieredRooms.begin(); i != requieredRooms.end(); i++)
+		if (i->first->currentState().second > i->second)
+			return true;
+	return false;
 }

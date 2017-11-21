@@ -181,6 +181,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <SDLCheck>true</SDLCheck>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
