@@ -34,19 +34,19 @@ namespace DCS
 			float color[4] = { .0f, .0f, .0f ,1 };
 			int sizeX;
 			int sizeY;
-			enum Buttons {Resume,Exit,Settings,Null};
+			enum EscMenuButton {Resume,Exit,Settings,Null};
 			class Button
 			{
-				Buttons type;
+				EscMenuButton type;
 			public:
-				Button(Point,Buttons);
+				Button(Point,EscMenuButton);
 				~Button() = default;
 				void render(ID2D1DeviceContext * context, Point offset) const;
-				Buttons OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, Point offset);
+				EscMenuButton OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, Point offset);
 			private:
 				float textColor[4]= { .0f, .0f, .0f, 1 };
 				float color[4] = { 1.f, 1.f, 1.0f ,1 };
-				static wchar_t*enumToChar(Buttons);
+				static wchar_t*enumToChar(EscMenuButton);
 				Point position;
 				int sizeX=200;
 				int sizeY=100;
@@ -70,6 +70,7 @@ namespace DCS
 		public:
 			void render(ID2D1DeviceContext * context, Point offset) const;
 			ObjectiveScreen(Scenario* obj);
+			void changeScenario(Scenario*obj);
 		}objectives = ObjectiveScreen(currentScenario);
 
 		class VictoryScreen
@@ -83,6 +84,41 @@ namespace DCS
 			void render(ID2D1DeviceContext * context, Point offset) const;
 			void changeState(bool newState);
 		}victoryScreen;
+		
+		class MainMenu
+		{
+		public:
+			enum PressResult { Nothing, ToGame, ExitApp };
+
+		private:
+			Point position;
+			float color[4] = { .5f, .5f, .5f ,1 };
+			int sizeX = 200;
+			int sizeY = 400;
+			enum MainMenuButton { NewGame, Continue, Settings, Exit, Null };
+			class MainButton
+			{
+				MainMenuButton type;
+			public:
+				MainButton(Point p, MainMenuButton b);
+				~MainButton() = default;
+				void render(ID2D1DeviceContext * context, Point offset) const;
+				MainMenuButton OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, Point offset);
+			private:
+				float textColor[4] = { .0f, .0f, .0f, 1 };
+				float color[4] = { 1.0f, 1.0f, 1.0f ,1 };
+				static wchar_t*enumToChar(MainMenuButton);
+				Point position;
+				int sizeX = 100;
+				int sizeY = 20;
+			};
+			std::vector<MainButton> buttons;
+		public:
+			PressResult OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+			void render(ID2D1DeviceContext * context) const;
+			MainMenu();
+
+		}main;
 
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);

@@ -131,65 +131,83 @@ void DCSdirectX11Main::OnDeviceRestored()
 
 void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
 {
-	if (isPaused)
-	{
-		switch (escMenu.OnPointerPressed(sender, args))
+	std::vector<std::pair<Room*, DCS::DamageState>> rooms;
+	Ship*vessel;
+	if ( CurrentScreen == ScreenType::MainMenu )
+		switch ( main.OnPointerPressed(sender, args) )
 		{
-		case DCS::Dx11Engine::EscMenu::ExitMenu:
+		case MainMenu::PressResult::ToGame:
 			isPaused = false;
+			vessel = new Ship();
+			currentScenario = new Scenario(new Timed(rooms, vessel, 10000), vessel);
+			CurrentScreen = ScreenType::InGame;
+			objectives.changeScenario(currentScenario);
 			break;
-		case DCS::Dx11Engine::EscMenu::None:
-			break;
-		case DCS::Dx11Engine::EscMenu::ReturnToMain:
+		case MainMenu::PressResult::ExitApp:
 			Windows::ApplicationModel::Core::CoreApplication::Exit();
-
-
+		default:
+			break;
 		}
-	}
 	else
-	{
-		DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
-
-		if (Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers)
-			for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
-				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 30)
-				{
-					(*i)->selected = true;
-					selected.emplace_back(*i);
-					break;
-				}
-
-		if (Windows::System::VirtualKeyModifiers::Control == args->KeyModifiers)
+		if ( isPaused )
 		{
-			if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
+			switch ( escMenu.OnPointerPressed(sender, args) )
 			{
-				for (int i = 0; i < selected.size(); i++)
-					selected[i]->selected = false;
+			case DCS::Dx11Engine::EscMenu::ExitMenu:
+				isPaused = false;
+				break;
+			case DCS::Dx11Engine::EscMenu::None:
+				break;
+			case DCS::Dx11Engine::EscMenu::ReturnToMain:
+				CurrentScreen = ScreenType::MainMenu;
+				delete currentScenario;
 			}
-			selected.clear();
-			//long press
-			for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
-				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 15)
-				{
-					(*i)->selected = true;
-					selected.emplace_back(*i);
-					break;
-				}
 		}
+
 		else
 		{
-			//short press
+			DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
 
-			if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
+			if ( Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers )
+				for ( std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++ )
+					if ( magnitude(DCS::operator+(DCS::operator+(( *i )->position, ( *i )->currentRoom->position), shipPosition) - position) < 30 )
+					{
+						( *i )->selected = true;
+						selected.emplace_back(*i);
+						break;
+					}
+
+			if ( Windows::System::VirtualKeyModifiers::Control == args->KeyModifiers )
 			{
-				Room *tmp = currentScenario->ship->findRoom(position - shipPosition);
-				if (tmp != nullptr)
-					for (int i = 0; i < selected.size(); i++)
-						selected[i]->changeDestination(std::pair<DCS::Point, DCS::Room*>(position - shipPosition - tmp->position, tmp));
+				if ( Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers )
+				{
+					for ( int i = 0; i < selected.size(); i++ )
+						selected[i]->selected = false;
+				}
+				selected.clear();
+				//long press
+				for ( std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++ )
+					if ( magnitude(DCS::operator+(DCS::operator+(( *i )->position, ( *i )->currentRoom->position), shipPosition) - position) < 15 )
+					{
+						( *i )->selected = true;
+						selected.emplace_back(*i);
+						break;
+					}
 			}
-		}
+			else
+			{
+				//short press
 
-	}
+				if ( Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers )
+				{
+					Room *tmp = currentScenario->ship->findRoom(position - shipPosition);
+					if ( tmp != nullptr )
+						for ( int i = 0; i < selected.size(); i++ )
+							selected[i]->changeDestination(std::pair<DCS::Point, DCS::Room*>(position - shipPosition - tmp->position, tmp));
+				}
+			}
+
+		}
 }
 
 void DCS::Dx11Engine::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
@@ -209,25 +227,34 @@ void DCS::Dx11Engine::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Wind
 void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 {
 	oddFrame++;
-	ID2D1SolidColorBrush *brush;
-	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
-	for (int i = 0; i < currentScenario->ship->silvete.size()-1; i++)
+	switch(CurrentScreen )
 	{
-		context->DrawLine(D2D1::Point2F((float)(currentScenario->ship->silvete[i]+shipPosition).first, (float)(currentScenario->ship->silvete[i]+shipPosition).second), D2D1::Point2F((float)(currentScenario->ship->silvete[i+1]+shipPosition).first, (float)(currentScenario->ship->silvete[i+1]+shipPosition).second), brush);
-	}
-	context->DrawLine(D2D1::Point2F((float)(currentScenario->ship->silvete[0]+shipPosition).first, (float)(currentScenario->ship->silvete[0]+shipPosition).second), D2D1::Point2F((float)(currentScenario->ship->silvete[currentScenario->ship->silvete.size()-1]+shipPosition).first, (float)(currentScenario->ship->silvete[currentScenario->ship->silvete.size()-1]+shipPosition).second), brush);
-	for (std::vector<Room*>::iterator i = currentScenario->ship->rooms.begin(); i != currentScenario->ship->rooms.end(); i++)
-		renderRoom(context, **i);
-	for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
-		renderMobileEntity(context, *i);
-	fManager.render(context);
-	if (isPaused)
-		escMenu.render(context);
-	objectives.render(context, Point(600, 500));
+	case InGame:
+		ID2D1SolidColorBrush *brush;
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
+		objectives.render(context, Point(600, 500));
+		for ( int i = 0; i < currentScenario->ship->silvete.size() - 1; i++ )
+		{
+			context->DrawLine(D2D1::Point2F((float)( currentScenario->ship->silvete[i] + shipPosition ).first, (float)( currentScenario->ship->silvete[i] + shipPosition ).second), D2D1::Point2F((float)( currentScenario->ship->silvete[i + 1] + shipPosition ).first, (float)( currentScenario->ship->silvete[i + 1] + shipPosition ).second), brush);
+		}
+		context->DrawLine(D2D1::Point2F((float)( currentScenario->ship->silvete[0] + shipPosition ).first, (float)( currentScenario->ship->silvete[0] + shipPosition ).second), D2D1::Point2F((float)( currentScenario->ship->silvete[currentScenario->ship->silvete.size() - 1] + shipPosition ).first, (float)( currentScenario->ship->silvete[currentScenario->ship->silvete.size() - 1] + shipPosition ).second), brush);
+		for ( std::vector<Room*>::iterator i = currentScenario->ship->rooms.begin(); i != currentScenario->ship->rooms.end(); i++ )
+			renderRoom(context, **i);
+		for ( std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++ )
+			renderMobileEntity(context, *i);
+		fManager.render(context);
+		if ( isPaused )
+			escMenu.render(context);
 
-	if ( state != Continue )
-		victoryScreen.render(context, Point(500, 400));
-	brush->Release();
+
+		if ( state != Continue )
+			victoryScreen.render(context, Point(500, 400));
+		brush->Release();
+		break;
+	case ScreenType::MainMenu:
+		main.render(context);
+		break;
+	}
 }
 
 void DCS::Dx11Engine::renderRoom(ID2D1DeviceContext * context, Room & room)
@@ -477,13 +504,69 @@ void DCS::Dx11Engine::EscMenu::render(ID2D1DeviceContext * context) const
 	brush->Release();
 }
 
-DCS::Dx11Engine::EscMenu::Button::Button(Point p, Buttons t)
+DCS::Dx11Engine::EscMenu::Button::Button(Point p, EscMenuButton t)
 {
 	position = p;
 	sizeX = 100;
 	sizeY = 20;
 	type = t;
 }
+
+DCS::Dx11Engine::MainMenu::MainButton::MainButton(Point p, MainMenuButton b)
+{
+	type = b;
+	position = p;
+}
+
+void DCS::Dx11Engine::MainMenu::MainButton::render(ID2D1DeviceContext * context, Point offset) const
+{
+	Point tmp = position + offset;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), background);
+
+
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer, 100, enumToChar(type));
+	std::wstring k(buffer);
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
+
+	background->Release();
+	text->Release();
+}
+
+DCS::Dx11Engine::MainMenu::MainMenuButton DCS::Dx11Engine::MainMenu::MainButton::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
+{
+	DCS::Point tmp = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y) - offset;
+	if ( tmp.first > position.first&&tmp.second > position.second&&tmp.first < position.first + sizeX&&tmp.second < position.second + sizeY )
+		return type;
+	else
+		return Null;
+}
+
+wchar_t * DCS::Dx11Engine::MainMenu::MainButton::enumToChar(MainMenuButton type)
+{
+	switch ( type )
+	{
+	case NewGame:
+		return L"New Game";
+	case Continue:
+		return L"Continue";
+	case Settings:
+		return L"Settings";
+	case Exit:
+		return L"Exit";
+	case Null:
+		throw std::runtime_error("enum to char error-was NULL");
+	}
+}
+
 
 void DCS::Dx11Engine::EscMenu::Button::render(ID2D1DeviceContext * context, Point offset) const
 {
@@ -509,7 +592,7 @@ void DCS::Dx11Engine::EscMenu::Button::render(ID2D1DeviceContext * context, Poin
 
 }
 
-DCS::Dx11Engine::EscMenu::Buttons DCS::Dx11Engine::EscMenu::Button::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
+DCS::Dx11Engine::EscMenu::EscMenuButton DCS::Dx11Engine::EscMenu::Button::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
 {
 	DCS::Point tmp = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y) - offset;
 	if (tmp.first > position.first&&tmp.second > position.second&&tmp.first < position.first + sizeX&&tmp.second < position.second + sizeY)
@@ -518,7 +601,7 @@ DCS::Dx11Engine::EscMenu::Buttons DCS::Dx11Engine::EscMenu::Button::OnPointerPre
 		return Null;
 }
 
-wchar_t * DCS::Dx11Engine::EscMenu::Button::enumToChar(Buttons b)
+wchar_t * DCS::Dx11Engine::EscMenu::Button::enumToChar(EscMenuButton b)
 {
 	switch (b)
 	{
@@ -569,6 +652,11 @@ DCS::Dx11Engine::ObjectiveScreen::ObjectiveScreen(DCS::Scenario* obj)
 	objective = obj;
 }
 
+void DCS::Dx11Engine::ObjectiveScreen::changeScenario(Scenario * obj)
+{
+	objective = obj;
+}
+
 void DCS::Dx11Engine::VictoryScreen::render(ID2D1DeviceContext * context, Point offset) const
 {
 	Point tmp = offset;
@@ -592,4 +680,41 @@ void DCS::Dx11Engine::VictoryScreen::render(ID2D1DeviceContext * context, Point 
 void DCS::Dx11Engine::VictoryScreen::changeState(bool newState)
 {
 	hasWon = newState;
+}
+
+DCS::Dx11Engine::MainMenu::PressResult DCS::Dx11Engine::MainMenu::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
+	for each ( auto var in buttons )
+	{
+		switch ( var.OnPointerPressed(sender, args, position) )
+		{
+		case Null:
+			break;
+		case NewGame:
+			return ToGame;
+		case Exit:
+			return ExitApp;
+		}
+	}
+}
+
+void DCS::Dx11Engine::MainMenu::render(ID2D1DeviceContext * context) const
+{
+	context->Clear(D2D1::ColorF(D2D1::ColorF::DarkGray));
+	ID2D1SolidColorBrush *background;
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF((float)position.first, (float)position.second, (float)position.first + sizeX, (float)position.second + sizeY), background);
+	for each ( auto var in buttons )
+	{
+		var.render(context, position);
+	}
+
+}
+
+DCS::Dx11Engine::MainMenu::MainMenu()
+{
+	for ( MainMenuButton i = NewGame; i < Null; i = (MainMenuButton)( i + 1 ) )
+		buttons.push_back(MainButton(Point(50, 50 + 50 * i), i));
+	position = Point(600, 400);
+
 }

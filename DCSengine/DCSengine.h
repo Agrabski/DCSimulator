@@ -169,6 +169,7 @@ namespace DCS
 	class Game
 	{
 	protected:
+		enum ScreenType { MainMenu, InGame } CurrentScreen = MainMenu;
 		bool isPaused = false;
 		ScenarioResult state = Continue;
 	public:

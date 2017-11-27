@@ -14,14 +14,11 @@ bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
 
 DCS::Game::Game()
 {
-	std::vector<std::pair<Room*, DCS::DamageState>> rooms;
-	Ship*vessel = new Ship();
-	currentScenario = new Scenario(new Timed(rooms, vessel, 10000), vessel);
 }
 
 void DCS::Game::gameTick()
 {
-	if ( !isPaused&&currentScenario != nullptr&&state == Continue )
+	if ( !isPaused&&currentScenario != nullptr&&state == Continue&&CurrentScreen == InGame )
 		state = currentScenario->scenarioTick();
 }
 
