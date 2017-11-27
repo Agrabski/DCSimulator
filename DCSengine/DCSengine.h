@@ -2,6 +2,7 @@
 #include <vector>
 #include <stdio.h>
 #include <unordered_map>
+#include <typeinfo>
 #define MAX_FIRE_VALUE 1000
 #define REPAIR_SPEED 1.0f
 #define FIRE_DAMAGE_RATE 0.0005f
@@ -34,6 +35,7 @@ namespace DCS
 	class Objective;
 	class Scenario;
 
+	enum ScenarioResult { Continue, Lost, Won };
 	enum DamageState { Operational, Damaged, OutOfAction, Destroyed };
 
 	class Ship
@@ -67,6 +69,7 @@ namespace DCS
 		double isWelded();
 		bool isOperational();
 		Door(Room*, Point, Room*, Point);
+		Point position(Room*t);
 	};
 
 	class Room
@@ -79,19 +82,14 @@ namespace DCS
 		double fire = 0;
 		int sizeX;
 		int sizeY;
-		Room*up;
-		Point positionUp;
-		Room*down;
-		Point positionDown;
-		Room*left;
-		Point positionLeft;
-		Room*right;
-		Point positionRight;
+		std::vector<Door*> doors;
 		DamageState state;
 		double damageTransition = 100.0f;
 		double oxygenGeneration = 0;
 		double desiredOxygen = MAX_OXYGEN;
 	public:
+		std::vector<Door*>::iterator giveDoors();
+		std::vector<Door*>::iterator doorsEnd();
 		Point findDoor(Room*next);
 		bool isOnFire();
 		Point position;
@@ -99,16 +97,9 @@ namespace DCS
 		enum RoomType { Bridge, Engineering, Corridor, LifeSupport };
 		void update();
 		Room(Point position, std::vector<Point>Silvete, std::vector<StaticEntity>entities, RoomType type, double OxygenGeneration = 0);
-		void setUp(Room*, Point);
-		void setDown(Room*, Point);
-		void setLeft(Room*, Point);
-		void setRight(Room*, Point);
+		void setConnection(Door*);
 		void removeEntity(MobileEntity*e);
 		void addEntity(MobileEntity*e);
-		std::pair<Room*, Point>leftDoor();
-		std::pair<Room*, Point>rightDoor();
-		std::pair<Room*, Point>downDoor();
-		std::pair<Room*, Point>upDoor();
 		void damage(double damage);
 		void repair(double amount);
 		std::pair<double, DamageState> currentState();
@@ -149,7 +140,6 @@ namespace DCS
 		std::pair<Point, bool>tmpDestination = std::pair<Point, bool>(Point(0, 0), false);
 		Status health = Nominal;
 		std::vector<Room*>path;
-		Point findDoor(Room*next);
 		void findPath();
 		int findRoute(std::pair<std::vector<DCS::Room*>, int>& currPath, int currentBest, DCS::Room * location, DCS::Room * destination, DCS::Point door, DCS::Point position, std::unordered_map<Room*, std::pair<DCS::Point, int>>*);
 	public:
@@ -180,25 +170,28 @@ namespace DCS
 	{
 	protected:
 		bool isPaused = false;
+		ScenarioResult state = Continue;
 	public:
+		Game();
 		std::vector<MobileEntity*>selected;
-		Ship ship;
+		Scenario* currentScenario;
 		void gameTick();
 		void switchPause();
 	};
 
+
 	class Scenario
 	{
-		Ship* ship;
-		Objective* target;
 		int gameTimer = 0;
 	public:
+		Ship* ship;
+		Objective* target;
 		std::ofstream& operator<<(std::ofstream&);
 		std::ifstream& operator>>(std::ifstream&);
 		Scenario(Objective*objective, Ship * vessel);
 		Scenario(std::ifstream & file);
-		enum ScenarioResult { Continue, Lost, Won };
 		ScenarioResult scenarioTick();
+		int ticsRemaining();
 	};
 
 	class Objective
@@ -210,14 +203,16 @@ namespace DCS
 		Objective(Ship * ref);
 		virtual bool isFullfilled(int ticCount) = 0;
 		virtual bool isFailed(int ticCount) = 0;
+
 	};
 
-	class Timed : Objective
+	class Timed : public  Objective
 	{
 		int ticsRemaining;
 	public:
 		Timed(std::vector <std::pair <Room*, DamageState>>reqRooms, Ship*ref, int tics);
 		virtual bool isFullfilled(int ticCount);
 		virtual bool isFailed(int ticCount);
+		int timeRemaining(int tics);
 	};
 }

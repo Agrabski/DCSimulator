@@ -151,7 +151,7 @@ void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, W
 		DCS::Point position = DCS::Point(args->CurrentPoint->Position.X, args->CurrentPoint->Position.Y);
 
 		if (Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers)
-			for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+			for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
 				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 30)
 				{
 					(*i)->selected = true;
@@ -168,7 +168,7 @@ void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, W
 			}
 			selected.clear();
 			//long press
-			for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+			for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
 				if (magnitude(DCS::operator+(DCS::operator+((*i)->position, (*i)->currentRoom->position), shipPosition) - position) < 15)
 				{
 					(*i)->selected = true;
@@ -182,7 +182,7 @@ void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, W
 
 			if (Windows::System::VirtualKeyModifiers::Shift != args->KeyModifiers)
 			{
-				Room *tmp = ship.findRoom(position - shipPosition);
+				Room *tmp = currentScenario->ship->findRoom(position - shipPosition);
 				if (tmp != nullptr)
 					for (int i = 0; i < selected.size(); i++)
 						selected[i]->changeDestination(std::pair<DCS::Point, DCS::Room*>(position - shipPosition - tmp->position, tmp));
@@ -200,7 +200,7 @@ void DCS::Dx11Engine::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, 
 void DCS::Dx11Engine::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args)
 {
 	if (args->VirtualKey == Windows::System::VirtualKey::Space)
-		ship.rooms[0]->setOnFire();
+		currentScenario->ship->rooms[0]->setOnFire();
 	else
 		if (args->VirtualKey == Windows::System::VirtualKey::Escape)
 			switchPause();
@@ -211,19 +211,22 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 	oddFrame++;
 	ID2D1SolidColorBrush *brush;
 	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
-	for (int i = 0; i < ship.silvete.size()-1; i++)
+	for (int i = 0; i < currentScenario->ship->silvete.size()-1; i++)
 	{
-		context->DrawLine(D2D1::Point2F((float)(ship.silvete[i]+shipPosition).first, (float)(ship.silvete[i]+shipPosition).second), D2D1::Point2F((float)(ship.silvete[i+1]+shipPosition).first, (float)(ship.silvete[i+1]+shipPosition).second), brush);
+		context->DrawLine(D2D1::Point2F((float)(currentScenario->ship->silvete[i]+shipPosition).first, (float)(currentScenario->ship->silvete[i]+shipPosition).second), D2D1::Point2F((float)(currentScenario->ship->silvete[i+1]+shipPosition).first, (float)(currentScenario->ship->silvete[i+1]+shipPosition).second), brush);
 	}
-	context->DrawLine(D2D1::Point2F((float)(ship.silvete[0]+shipPosition).first, (float)(ship.silvete[0]+shipPosition).second), D2D1::Point2F((float)(ship.silvete[ship.silvete.size()-1]+shipPosition).first, (float)(ship.silvete[ship.silvete.size()-1]+shipPosition).second), brush);
-	for (std::vector<Room*>::iterator i = ship.rooms.begin(); i != ship.rooms.end(); i++)
+	context->DrawLine(D2D1::Point2F((float)(currentScenario->ship->silvete[0]+shipPosition).first, (float)(currentScenario->ship->silvete[0]+shipPosition).second), D2D1::Point2F((float)(currentScenario->ship->silvete[currentScenario->ship->silvete.size()-1]+shipPosition).first, (float)(currentScenario->ship->silvete[currentScenario->ship->silvete.size()-1]+shipPosition).second), brush);
+	for (std::vector<Room*>::iterator i = currentScenario->ship->rooms.begin(); i != currentScenario->ship->rooms.end(); i++)
 		renderRoom(context, **i);
-	for (std::vector<DCS::MobileEntity*>::iterator i = ship.mobileEntities.begin(); i != ship.mobileEntities.end(); i++)
+	for (std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++)
 		renderMobileEntity(context, *i);
 	fManager.render(context);
 	if (isPaused)
 		escMenu.render(context);
+	objectives.render(context, Point(600, 500));
 
+	if ( state != Continue )
+		victoryScreen.render(context, Point(500, 400));
 	brush->Release();
 }
 
@@ -407,6 +410,8 @@ wchar_t * DCS::enumToString(Room::RoomType t)
 		return L"Corridor";
 	case DCS::Room::LifeSupport:
 		return  L"Life Support";
+	default:
+		throw std::runtime_error("Error in enum to string");
 	}
 }
 
@@ -422,6 +427,9 @@ wchar_t * DCS::enumToString(DamageState t)
 		return L"Out of action";
 	case Destroyed:
 		return L"Destroyed";
+	default:
+		throw std::runtime_error("Error in enum to string");
+
 	}
 }
 
@@ -520,5 +528,68 @@ wchar_t * DCS::Dx11Engine::EscMenu::Button::enumToChar(Buttons b)
 		return L"Exit";
 	case Settings:
 		return L"Settings";
+	default:
+		throw std::runtime_error("Error in enum to string");
+
 	}
+}
+
+void DCS::Dx11Engine::ObjectiveScreen::render(ID2D1DeviceContext * context, Point offset) const
+{
+	Point tmp = offset;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), background);
+
+
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer, 100, L"Objectives:");
+	std::wstring k(buffer);
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
+	int n = objective->ticsRemaining();
+	if (n!=-1)
+	{
+		swprintf(buffer, 100, L"Survive for: %02d:%02d", n / 60 / 60, (n / 60)%60);
+		k = std::wstring(buffer);
+	}
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second+20, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
+	background->Release();
+	text->Release();
+
+}
+
+DCS::Dx11Engine::ObjectiveScreen::ObjectiveScreen(DCS::Scenario* obj)
+{
+	objective = obj;
+}
+
+void DCS::Dx11Engine::VictoryScreen::render(ID2D1DeviceContext * context, Point offset) const
+{
+	Point tmp = offset;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), background);
+
+
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 30, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer, 100, hasWon ? L"You have won!:" : L"You have lost!");
+	std::wstring k(buffer);
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
+}
+
+void DCS::Dx11Engine::VictoryScreen::changeState(bool newState)
+{
+	hasWon = newState;
 }

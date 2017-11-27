@@ -60,6 +60,30 @@ namespace DCS
 			void render(ID2D1DeviceContext * context) const;
 		}escMenu = EscMenu(Point(600, 100));
 
+		class ObjectiveScreen
+		{
+			Point size=Point(300, 200);
+			Scenario*objective;
+			float textColor[4] = { .0f, .0f, .0f, 1 };
+			float color[4] = { 1.f, 1.f, 1.0f ,1 };
+
+		public:
+			void render(ID2D1DeviceContext * context, Point offset) const;
+			ObjectiveScreen(Scenario* obj);
+		}objectives = ObjectiveScreen(currentScenario);
+
+		class VictoryScreen
+		{
+			Point size = Point(400, 400);
+			Scenario*objective;
+			float textColor[4] = { .0f, .0f, .0f, 1 };
+			float color[4] = { 1.f, 1.f, 1.0f ,1 };
+			bool hasWon;
+		public:
+			void render(ID2D1DeviceContext * context, Point offset) const;
+			void changeState(bool newState);
+		}victoryScreen;
+
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 		void OnPointerReleased(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
