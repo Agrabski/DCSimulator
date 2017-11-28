@@ -34,6 +34,7 @@ namespace DCS
 	class StaticEntity;
 	class Objective;
 	class Scenario;
+	class Event;
 
 	enum ScenarioResult { Continue, Lost, Won };
 	enum DamageState { Operational, Damaged, OutOfAction, Destroyed };
@@ -184,15 +185,20 @@ namespace DCS
 	class Scenario
 	{
 		int gameTimer = 0;
+		std::vector<Event*> events;
 	public:
 		Ship* ship;
-		Objective* target;
+		std::vector<Objective*> target;
 		std::ofstream& operator<<(std::ofstream&);
 		std::ifstream& operator>>(std::ifstream&);
-		Scenario(Objective*objective, Ship * vessel);
+		Scenario(std::vector<Objective*>objective, Ship * vessel);
+		Scenario(std::vector<Objective*>objective, Ship * vessel, std::vector<Event*> &events);
 		Scenario(std::ifstream & file);
 		ScenarioResult scenarioTick();
-		int ticsRemaining();
+		void addObjective(Objective*obj);
+		std::vector<int> ticsRemaining();
+		std::vector <std::pair <Room*, DamageState>> roomsRequired();
+		~Scenario();
 	};
 
 	class Objective
@@ -204,7 +210,7 @@ namespace DCS
 		Objective(Ship * ref);
 		virtual bool isFullfilled(int ticCount) = 0;
 		virtual bool isFailed(int ticCount) = 0;
-
+		std::vector <std::pair <Room*, DamageState>> requiredRooms();
 	};
 
 	class Timed : public  Objective
@@ -215,5 +221,36 @@ namespace DCS
 		virtual bool isFullfilled(int ticCount);
 		virtual bool isFailed(int ticCount);
 		int timeRemaining(int tics);
+	};
+
+	class Trigger
+	{
+	protected:
+		bool triggered = false;
+	public:
+		virtual bool operator()(int tics, Scenario*ref) = 0;
+	};
+
+	class TimeTrigger :public Trigger
+	{
+		int ticsToTrigger;
+	public:
+		virtual bool operator()(int tics, Scenario*ref);
+		TimeTrigger(int n);
+	};
+
+	class Event
+	{
+		std::vector<std::pair<Room*, int>>setOnFire;
+		std::vector<std::pair<Room*, int>>toBoard;
+		std::vector<Room*>toDepressurise;
+		std::vector<std::pair<Room*, int>>toDamage;
+		Trigger*trigger;
+	public:
+		void tryTrigger(int tics, Scenario* ref);
+		Event(Trigger* t, std::vector<std::pair<Room*, int>>setOnFire, std::vector<std::pair<Room*, int>>toBoard, std::vector<Room*>toDepressurise, std::vector<std::pair<Room*, int>>toDamage);
+		Event& operator=(Event&);
+		Event(const Event&t) = default;
+		~Event();
 	};
 }

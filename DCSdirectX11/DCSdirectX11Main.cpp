@@ -133,14 +133,25 @@ void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, W
 {
 	std::vector<std::pair<Room*, DCS::DamageState>> rooms;
 	Ship*vessel;
+	std::vector<Objective*> tmp;
+	std::vector<Event*> tmpEvent;
+	std::vector<std::pair<Room*, int>>setOnFire;
+	std::vector<std::pair<Room*, int>>toBoard;
+	std::vector<Room*>toDepressurise;
+	std::vector<std::pair<Room*, int>>toDamage;
 	if ( CurrentScreen == ScreenType::MainMenu )
 		switch ( main.OnPointerPressed(sender, args) )
 		{
 		case MainMenu::PressResult::ToGame:
 			isPaused = false;
 			vessel = new Ship();
-			currentScenario = new Scenario(new Timed(rooms, vessel, 10000), vessel);
+			rooms.emplace_back(vessel->rooms[0],Damaged);
+			tmp.push_back(new Timed(rooms, vessel, 10000));
+			setOnFire.push_back(std::pair<Room*, int>(rooms[0].first, 80));
+			tmpEvent.push_back(new Event(new TimeTrigger(1200), setOnFire, toBoard, toDepressurise, toDamage));
+			currentScenario = new Scenario(tmp, vessel,tmpEvent );
 			CurrentScreen = ScreenType::InGame;
+			state = Continue;
 			objectives.changeScenario(currentScenario);
 			break;
 		case MainMenu::PressResult::ExitApp:
@@ -243,12 +254,14 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 		for ( std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++ )
 			renderMobileEntity(context, *i);
 		fManager.render(context);
+
+		if ( state != Continue ) 
+		{
+			victoryScreen.changeState(state == Won ? true : false);
+			victoryScreen.render(context, Point(500, 400));
+		}
 		if ( isPaused )
 			escMenu.render(context);
-
-
-		if ( state != Continue )
-			victoryScreen.render(context, Point(500, 400));
 		brush->Release();
 		break;
 	case ScreenType::MainMenu:
@@ -536,9 +549,11 @@ void DCS::Dx11Engine::MainMenu::MainButton::render(ID2D1DeviceContext * context,
 	swprintf(buffer, 100, enumToChar(type));
 	std::wstring k(buffer);
 	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
-
+	delete[] buffer;
 	background->Release();
 	text->Release();
+	t->Release();
+	c->Release();
 }
 
 DCS::Dx11Engine::MainMenu::MainMenuButton DCS::Dx11Engine::MainMenu::MainButton::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
@@ -589,7 +604,8 @@ void DCS::Dx11Engine::EscMenu::Button::render(ID2D1DeviceContext * context, Poin
 
 	background->Release();
 	text->Release();
-
+	t->Release();
+	c->Release();
 }
 
 DCS::Dx11Engine::EscMenu::EscMenuButton DCS::Dx11Engine::EscMenu::Button::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, Point offset)
@@ -619,31 +635,55 @@ wchar_t * DCS::Dx11Engine::EscMenu::Button::enumToChar(EscMenuButton b)
 
 void DCS::Dx11Engine::ObjectiveScreen::render(ID2D1DeviceContext * context, Point offset) const
 {
+	int sizeY = 60 + objective->roomsRequired().size() * 20 + objective->roomsRequired().size() * 20;
 	Point tmp = offset;
 	ID2D1SolidColorBrush *background;
 	ID2D1SolidColorBrush *text;
 	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
 	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
-	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), background);
-
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + sizeY), background);
 
 	IDWriteFactory* t;
 	IDWriteTextFormat*c;
-	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&t));
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
 	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
 	wchar_t *buffer = new wchar_t[100];
 	swprintf(buffer, 100, L"Objectives:");
 	std::wstring k(buffer);
-	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
-	int n = objective->ticsRemaining();
-	if (n!=-1)
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
+	int f = 20;
+	if ( objective->roomsRequired().size() > 0 )
 	{
-		swprintf(buffer, 100, L"Survive for: %02d:%02d", n / 60 / 60, (n / 60)%60);
+		swprintf(buffer, 100, L"Protect:");
 		k = std::wstring(buffer);
+		context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second + f, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
+		f += 20;
+		for each ( auto var in objective->roomsRequired() )
+		{
+			swprintf(buffer, 100,L"* %s must be %s or better", enumToString(var.first->whatType()),enumToString(var.second));
+			k = std::wstring(buffer);
+			context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second + f, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
+			f += 20;
+		}
 	}
-	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second+20, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
+	auto n = objective->ticsRemaining();
+	swprintf(buffer, 100, L"Survive for:");
+	k = std::wstring(buffer);
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second + f, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
+	f += 20;
+	for each ( auto var in n )
+	{
+		swprintf(buffer, 100, L"* %02d:%02d", var / 60 / 60, ( var / 60 ) % 60);
+		k = std::wstring(buffer);
+		context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second + f, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
+		f += 20;
+	}
+
+	delete[] buffer;
 	background->Release();
 	text->Release();
+	t->Release();
+	c->Release();
 
 }
 
@@ -675,6 +715,11 @@ void DCS::Dx11Engine::VictoryScreen::render(ID2D1DeviceContext * context, Point 
 	swprintf(buffer, 100, hasWon ? L"You have won!:" : L"You have lost!");
 	std::wstring k(buffer);
 	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + size.first, (float)tmp.second + size.second), text);
+
+	background->Release();
+	text->Release();
+	t->Release();
+	c->Release();
 }
 
 void DCS::Dx11Engine::VictoryScreen::changeState(bool newState)
@@ -708,7 +753,7 @@ void DCS::Dx11Engine::MainMenu::render(ID2D1DeviceContext * context) const
 	{
 		var.render(context, position);
 	}
-
+	background->Release();
 }
 
 DCS::Dx11Engine::MainMenu::MainMenu()

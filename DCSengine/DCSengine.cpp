@@ -164,8 +164,8 @@ DCS::Ship::Ship()
 	Room* lifeSupport = new Room(Point(90, 95), bridgeSilvete, e, Room::RoomType::LifeSupport, .03);
 
 
-	MobileEntity*entity = new MobileEntity(bridge, Point(10, 10), MobileEntity::Engineer);
-	MobileEntity*entity1 = new MobileEntity(bridge, Point(30, 10), MobileEntity::Marine);
+	MobileEntity*entity = new MobileEntity(bridge, Point(10, 10), MobileEntity::Marine);
+	MobileEntity*entity1 = new MobileEntity(lifeSupport, Point(30, 10), MobileEntity::Engineer);
 	MobileEntity*entity2 = new MobileEntity(lifeSupport, Point(10, 10), MobileEntity::Engineer);
 	Door*tmp = new Door(bridge, DCS::Point(40, 25), corridor, DCS::Point(0, 10));
 	bridge->setConnection(tmp);
@@ -177,7 +177,7 @@ DCS::Ship::Ship()
 	engineering->setConnection(tmp);
 	lifeSupport->setConnection(tmp);
 	bridge->addEntity(entity);
-	bridge->addEntity(entity1);
+	lifeSupport->addEntity(entity1);
 	rooms.push_back(bridge);
 	rooms.push_back(corridor);
 	rooms.push_back(engineering);
@@ -641,10 +641,29 @@ DCS::Objective::Objective(Ship * ref)
 	gameReference = ref;
 }
 
-DCS::Scenario::Scenario(Objective * objective, Ship * vessel)
+std::vector <std::pair <DCS::Room*, DCS::DamageState>> DCS::Objective::requiredRooms()
+{
+	return requieredRooms;
+}
+
+
+DCS::Scenario::Scenario(std::vector<Objective *> objective, Ship * vessel)
 {
 	ship = vessel;
-	target = objective;
+	for each ( auto var in objective )
+	{
+		target.push_back(var);
+	}
+}
+
+DCS::Scenario::Scenario(std::vector<Objective*> objective, Ship * vessel, std::vector<Event*> &events)
+{
+	ship = vessel;
+	for each ( auto var in objective )
+	{
+		target.push_back(var);
+	}
+	this->events = events;
 }
 
 DCS::Scenario::Scenario(std::ifstream & file)
@@ -654,21 +673,53 @@ DCS::Scenario::Scenario(std::ifstream & file)
 DCS::ScenarioResult DCS::Scenario::scenarioTick()
 {
 	gameTimer++;
+	for each(auto var in events)
+	{
+		var->tryTrigger(gameTimer, this);
+	}
 	ship->update();
-	if ( target->isFullfilled(gameTimer) )
+	for each ( auto var in target)
+	{
+	if ( var->isFullfilled(gameTimer) )
 		return Won;
-	if ( target->isFailed(gameTimer) )
+	if ( var->isFailed(gameTimer) )
 		return Lost;
+
+	}
 	return Continue;
 
 }
 
-int DCS::Scenario::ticsRemaining()
+void DCS::Scenario::addObjective(Objective * obj)
 {
-	if ( typeid( *target ) == typeid( Timed ) )
-		return ( (Timed*)target )->timeRemaining(gameTimer);
-	else
-		return -1;
+	target.push_back(obj);
+}
+
+std::vector<int> DCS::Scenario::ticsRemaining()
+{
+	std::vector<int> tmp;
+	for each ( auto var in target )
+		if ( typeid( *var ) == typeid( Timed ) )
+			tmp.push_back( ( (Timed*)var )->timeRemaining(gameTimer));
+	return tmp;
+}
+
+std::vector <std::pair <DCS::Room*, DCS::DamageState>> DCS::Scenario::roomsRequired()
+{
+	std::vector <std::pair <Room*, DamageState>> tmp;
+	for each ( auto var in target )
+	{
+		for each ( auto iterator in var->requiredRooms() )
+		{
+			tmp.push_back(iterator);
+		}
+	}
+	return tmp;
+}
+
+DCS::Scenario::~Scenario()
+{
+	delete ship;
 }
 
 DCS::Timed::Timed(std::vector<std::pair<DCS::Room*, DCS::DamageState>> reqRooms, Ship *ref, int tics) : Objective(ref)
@@ -693,4 +744,59 @@ bool DCS::Timed::isFailed(int ticCount)
 int DCS::Timed::timeRemaining(int tics)
 {
 	return ticsRemaining - tics;
+}
+
+void DCS::Event::tryTrigger(int tics, Scenario * ref)
+{
+	if ( (*trigger)(tics, ref) )
+	{
+		for each ( auto var in setOnFire )
+		{
+			var.first->setOnFire((double)var.second);
+			
+		}
+	}
+}
+
+DCS::Event::Event(Trigger * t, std::vector<std::pair<Room*, int>> setOnFire, std::vector<std::pair<Room*, int>> toBoard, std::vector<Room*> toDepressurise, std::vector<std::pair<Room*, int>> toDamage)
+{
+	this->setOnFire = setOnFire;
+	this->toBoard = toBoard;
+	this->toDepressurise = toDepressurise;
+	this->toDamage = toDamage;
+	trigger = t;
+}
+
+DCS::Event & DCS::Event::operator=(DCS::Event &t)
+{
+	this->setOnFire = t.setOnFire;
+	this->toBoard = t.toBoard;
+	this->toDepressurise = t.toDepressurise;
+	this->toDamage = t.toDamage;
+	trigger = t.trigger;
+	t.trigger = nullptr;
+	return *this;
+}
+
+
+
+DCS::Event::~Event()
+{
+	delete trigger;
+}
+
+bool DCS::TimeTrigger::operator()(int tics, Scenario * ref)
+{
+	if ( !triggered&& tics >= ticsToTrigger )
+	{
+		triggered = true;
+		return true;
+	}
+	return false;
+
+}
+
+DCS::TimeTrigger::TimeTrigger(int n)
+{
+	ticsToTrigger = n;
 }
