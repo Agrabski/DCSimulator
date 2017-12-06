@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <typeinfo>
 #define MAX_FIRE_VALUE 1000
+#pragma region Defs
+
 #define REPAIR_SPEED 1.0f
 #define FIRE_DAMAGE_RATE 0.0005f
 #define FIRE_SPREAD_MODIFIER .001f
@@ -11,6 +13,7 @@
 #define MIN_FIRE_VALUE 500
 #define DEATH_CHANCE 95*MAX_FIRE_VALUE
 #define MAX_OXYGEN 100.0f
+#define MAX_OVERPRESSURE 150.0
 #define MIN_OXYGEN_TO_FIRE 20.0f
 #define MAX_OXYGEN_SUPPLY_RATE 2.0f
 #define MAX_WELD 100.0f
@@ -18,6 +21,9 @@
 #define FIRE_START_VALUE 10
 #define DAMAGE_EFFICENCY_MULTIPLIER .5
 #define EXTINGUISH_CONSTANT .5
+
+#pragma endregion
+
 
 namespace DCS
 {
@@ -35,17 +41,25 @@ namespace DCS
 	class Objective;
 	class Scenario;
 	class Event;
+	class HullBreach;
+
 
 	enum ScenarioResult { Continue, Lost, Won };
 	enum DamageState { Operational, Damaged, OutOfAction, Destroyed };
 
 	class Ship
 	{
+		std::vector<HullBreach>breaches;
+		std::vector<Room*>rooms;
 	public:
 		std::vector<Point>silvete;
-		std::vector<Room*>rooms;
+
 		std::vector<MobileEntity*>mobileEntities;
 		Room *findRoom(Point);
+		std::vector<Room*>::const_iterator roomCbegin();
+		std::vector<Room*>::const_iterator roomCend();
+		std::vector<MobileEntity*>::const_iterator entityCbegin();
+		std::vector<MobileEntity*>::const_iterator entityCend();
 		void update();
 		Ship();
 		~Ship();
@@ -59,7 +73,7 @@ namespace DCS
 		double isWeldedShut = 0.0f;
 		bool works = true;
 	public:
-		std::pair<Room*, Point>otherSide(Room*curr);
+		std::pair<Room*, Point>otherSide(Room*curr) const;
 		bool weld(double amount);
 		void unweld(double amount);
 		//returns success state
@@ -71,6 +85,7 @@ namespace DCS
 		bool isOperational();
 		Door(Room*, Point, Room*, Point);
 		Point position(Room*t);
+		double leakOxygen(double value, Room*source,double precentage);
 	};
 
 	class Room
@@ -81,8 +96,7 @@ namespace DCS
 		std::vector<MobileEntity*>mobileEntities;
 		bool onFire = false;
 		double fire = 0;
-		int sizeX;
-		int sizeY;
+		int volume=1;
 		std::vector<Door*> doors;
 		DamageState state;
 		double damageTransition = 100.0f;
@@ -91,8 +105,8 @@ namespace DCS
 	public:
 		std::vector<Door*>::iterator giveDoors();
 		std::vector<Door*>::iterator doorsEnd();
-		Point findDoor(Room*next);
-		bool isOnFire();
+		const Door& findDoor(Room*next);
+		bool isOnFire() const;
 		Point position;
 		std::vector<Point>silvete;
 		enum RoomType { Bridge, Engineering, Corridor, LifeSupport };
@@ -103,19 +117,21 @@ namespace DCS
 		void addEntity(MobileEntity*e);
 		void damage(double damage);
 		void repair(double amount);
-		std::pair<double, DamageState> currentState();
-		bool colides(Point p, MobileEntity* e);
+		std::pair<double, DamageState> currentState() const;
+		bool colides(Point p, MobileEntity* e) const;
 		void setOnFire();
 		void setOnFire(double value);
-		int fireValue();
+		int fireValue() const;
 		void extinguish(double ammount);
-		RoomType whatType();
-		int currentOxygenLevel();
+		RoomType whatType() const;
+		int currentOxygenLevel()const;
 		void setDesiredOxygen(double);
 		double supplyOxygen(double value);
 		double generateOxygen();
 		MobileEntity*findEntity(Point);
 		MobileEntity*findEntity(Point, MobileEntity*);
+		void suckOxygen(double value);
+		void forceOxygen(double value);
 	private:
 		RoomType type;
 
@@ -252,5 +268,17 @@ namespace DCS
 		Event& operator=(Event&);
 		Event(const Event&t) = default;
 		~Event();
+	};
+
+	class HullBreach
+	{
+		Room*affectedRoom;
+		double size;
+		const static double pressureOverSizeToEscalate;
+		const static int maxSize;
+		static int oxygenFlowMultiplier;
+		static int pullMultiplier;
+	public:
+		void timerTick();
 	};
 }

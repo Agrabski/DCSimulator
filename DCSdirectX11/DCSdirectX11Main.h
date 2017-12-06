@@ -16,17 +16,36 @@ namespace DCS
 	class Dx11Engine :public Game
 	{
 		unsigned int oddFrame = 0;
-		class FireManager
+
+		class DraggableWindow
+		{
+			bool isDragged;
+			D2D1::ColorF::Enum color = D2D1::ColorF::White;
+		protected:
+			Point dragArea;
+			Point size;
+			Point position;
+			virtual void privateRender(ID2D1DeviceContext * context)=0;
+			virtual  void press(DCS::Point)=0;
+			DraggableWindow(D2D1::ColorF::Enum, Point size, Point position);
+		public:
+			void render(DCS::Point, ID2D1DeviceContext * context);
+			void pointerPress(Point);
+			void pointerRelease();
+		};
+
+		class FireManager : public DraggableWindow
 		{
 			int oddFrame = 0;
 			int remainCount = 0;
 			std::vector<Room*>fires;
-			Point position;
+			virtual void press(Point);
+			virtual void privateRender(ID2D1DeviceContext * context);
+
 		public:
-			void render(ID2D1DeviceContext * context);
 			FireManager(Point position);
-			void add(Room* r);
-			void remove(Room*r);
+			void add(  Room *  r);
+			void remove(const Room * const r);
 		}fManager = FireManager(Point(500, 150));
 
 		class EscMenu
@@ -60,18 +79,17 @@ namespace DCS
 			void render(ID2D1DeviceContext * context) const;
 		}escMenu = EscMenu(Point(600, 100));
 
-		class ObjectiveScreen
+		class ObjectiveScreen : public DraggableWindow
 		{
-			Point size=Point(300, 200);
 			Scenario*objective;
 			float textColor[4] = { .0f, .0f, .0f, 1 };
 			float color[4] = { 1.f, 1.f, 1.0f ,1 };
-
+			virtual void privateRender(ID2D1DeviceContext * context);
+			virtual void press(Point);
 		public:
-			void render(ID2D1DeviceContext * context, Point offset) const;
-			ObjectiveScreen(Scenario* obj);
+			ObjectiveScreen(Scenario* obj, Point position);
 			void changeScenario(Scenario*obj);
-		}objectives = ObjectiveScreen(currentScenario);
+		}objectives = ObjectiveScreen(currentScenario,Point(400,400));
 
 		class VictoryScreen
 		{
@@ -126,7 +144,7 @@ namespace DCS
 		void OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args);
 		Point shipPosition = Point(100, 100);
 		void gameRender(ID2D1DeviceContext * context);
-		void renderRoom(ID2D1DeviceContext * context, Room&room);
+		void renderRoom(ID2D1DeviceContext * context, const Room&room);
 		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
 	};
 }

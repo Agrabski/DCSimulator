@@ -4,6 +4,11 @@
 #include <ctime>
 
 
+const double DCS::HullBreach::pressureOverSizeToEscalate = .75;
+const int DCS::HullBreach::maxSize = 100;
+int DCS::HullBreach::oxygenFlowMultiplier = .1;
+
+
 bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
 {
 	for ( std::vector<DCS::Room*>::iterator i = t.begin(); i != t.end(); i++ )
@@ -110,6 +115,26 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 	return nullptr;
 }
 
+std::vector<DCS::Room*>::const_iterator DCS::Ship::roomCbegin()
+{
+	return rooms.cbegin();
+}
+
+std::vector<DCS::Room*>::const_iterator DCS::Ship::roomCend()
+{
+	return rooms.cend();
+}
+
+std::vector<DCS::MobileEntity*>::const_iterator DCS::Ship::entityCbegin()
+{
+	return mobileEntities.cbegin();
+}
+
+std::vector<DCS::MobileEntity*>::const_iterator DCS::Ship::entityCend()
+{
+	return mobileEntities.cend();
+}
+
 void DCS::Ship::update()
 {
 	double oxygen = 0.0;
@@ -121,6 +146,10 @@ void DCS::Ship::update()
 	for each ( Room* var in rooms )
 	{
 		oxygen = var->supplyOxygen(oxygen);
+	}
+	for each ( auto var in breaches )
+	{
+		var.timerTick();
 	}
 
 	for ( std::vector<MobileEntity*>::iterator i = mobileEntities.begin(); i != mobileEntities.end(); i++ )
@@ -206,16 +235,16 @@ std::vector<DCS::Door*>::iterator DCS::Room::doorsEnd()
 	return doors.end();
 }
 
-DCS::Point DCS::Room::findDoor(Room * next)
+const DCS::Door& DCS::Room::findDoor(Room * next)
 {
 	std::pair<Room*, Point> k;
 	for ( int i = 0; i < doors.size(); i++ )
 		if ( doors[i]->otherSide(this).first == next )
-			return doors[i]->otherSide(next).second;
+			return *doors[i];
 	throw std::exception();
 }
 
-bool DCS::Room::isOnFire()
+bool DCS::Room::isOnFire() const
 {
 	return onFire;
 }
@@ -235,12 +264,14 @@ void DCS::Room::update()
 			fire += FIRE_SPREAD_MODIFIER*fire;
 		if ( fire > MIN_FIRE_VALUE + rand() % FIRE_SPREAD_CHANCE )
 			doors[rand() % doors.size()]->otherSide(this).first->setOnFire(log(fire / 10) / 10.0);
-
+		for each( auto t in doors )
+			oxygenLevel -= t->leakOxygen(oxygenLevel*volume, this, oxygenLevel) / volume;
 	}
 }
 
 DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEntity> entities, RoomType type, double OxygenGeneration)
 {
+	//TODO: calculate volume
 	this->position = position;
 	this->silvete = Silvete;
 	staticEntities = entities;
@@ -300,12 +331,12 @@ void DCS::Room::repair(double amount)
 	}
 }
 
-std::pair<double, DCS::DamageState> DCS::Room::currentState()
+std::pair<double, DCS::DamageState> DCS::Room::currentState() const
 {
 	return std::pair<double, DCS::DamageState>(damageTransition, state);
 }
 
-bool DCS::Room::colides(Point p, MobileEntity* e)
+bool DCS::Room::colides(Point p, MobileEntity* e) const
 {
 	for each ( auto var in mobileEntities )
 	{
@@ -335,7 +366,7 @@ void DCS::Room::setOnFire(double value)
 	}
 }
 
-int DCS::Room::fireValue()
+int DCS::Room::fireValue() const
 {
 	return (int)fire;
 }
@@ -348,12 +379,12 @@ void DCS::Room::extinguish(double ammount)
 		onFire = false;
 }
 
-DCS::Room::RoomType DCS::Room::whatType()
+DCS::Room::RoomType DCS::Room::whatType() const
 {
 	return type;
 }
 
-int DCS::Room::currentOxygenLevel()
+int DCS::Room::currentOxygenLevel() const
 {
 	return (int)oxygenLevel;
 }
@@ -397,6 +428,16 @@ DCS::MobileEntity * DCS::Room::findEntity(Point p, MobileEntity *t)
 		{
 			return *i;
 		}
+}
+
+void DCS::Room::suckOxygen(double value)
+{
+	oxygenLevel = max(0, oxygenLevel - value);
+}
+
+void DCS::Room::forceOxygen(double value)
+{
+	oxygenLevel =min(oxygenLevel+ value / volume,MAX_OVERPRESSURE);
 }
 
 DCS::Point DCS::operator+(const Point & left, const Point & right)
@@ -488,12 +529,12 @@ DCS::Room * DCS::MobileEntity::update()
 		Point tmp;
 		try
 		{
-			tmp = currentRoom->findDoor(path[0]);
+			tmp = currentRoom->findDoor(path[0]).otherSide(path[0]).second;
 		}
 		catch ( std::exception )
 		{
 			findPath();
-			tmp = currentRoom->findDoor(path[0]);
+			tmp = currentRoom->findDoor(path[0]).otherSide(path[0]).second;
 		}
 		Room*prev = currentRoom;
 		if ( !currentRoom->colides(position + DCS::Point(( tmp.first - position.first ) > 0 ? 1 : ( ( tmp.first - position.first ) == 0 ? 0 : -1 ), ( tmp.second - position.second ) > 0 ? 1 : ( ( tmp.second - position.second ) == 0 ? 0 : -1 )), this) )
@@ -504,8 +545,10 @@ DCS::Room * DCS::MobileEntity::update()
 
 		if ( position == tmp )
 		{
+			auto tmpDoor = currentRoom->findDoor(path[0]);
+			tmpDoor.open();
+			position = tmpDoor.otherSide(currentRoom).second;
 			currentRoom = path[0];
-			position = currentRoom->findDoor(prev);
 			if ( !currentRoom->colides(position, this) )
 				path.erase(path.begin(), path.begin() + 1);
 			else
@@ -557,7 +600,7 @@ DCS::Room * DCS::StaticEntity::update()
 	throw std::runtime_error("not implemented");
 }
 
-std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr)
+std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr) const
 {
 	if ( curr == firstSide.first )
 		return secondSide;
@@ -634,6 +677,14 @@ DCS::Door::Door(Room *r1, Point p1, Room *r2, Point p2)
 DCS::Point DCS::Door::position(Room * t)
 {
 	return t == firstSide.first ? firstSide.second : secondSide.second;
+}
+
+double DCS::Door::leakOxygen(double value, Room * source, double precentage)
+{
+	if(!isOpen )
+		return 0.0;
+	Room*tmp = otherSide(source).first;
+	tmp->forceOxygen(value*max( 1.0 - tmp->currentOxygenLevel() / precentage,0.0 ));
 }
 
 DCS::Objective::Objective(Ship * ref)
@@ -799,4 +850,11 @@ bool DCS::TimeTrigger::operator()(int tics, Scenario * ref)
 DCS::TimeTrigger::TimeTrigger(int n)
 {
 	ticsToTrigger = n;
+}
+
+void DCS::HullBreach::timerTick()
+{
+	if ( affectedRoom->currentOxygenLevel() / size > pressureOverSizeToEscalate )
+		size = min(maxSize, size + affectedRoom->currentOxygenLevel() / MAX_OXYGEN * 2);
+	affectedRoom->suckOxygen(size*oxygenFlowMultiplier);
 }
