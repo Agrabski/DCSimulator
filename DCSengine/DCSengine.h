@@ -64,6 +64,8 @@ namespace DCS
 		std::vector<Room*>::const_iterator roomCend();
 		std::vector<MobileEntity*>::const_iterator entityCbegin();
 		std::vector<MobileEntity*>::const_iterator entityCend();
+		std::vector<Door*>::iterator doorBegin();
+		std::vector<Door*>::iterator doorEnd();
 		void update();
 		Ship();
 		~Ship();
@@ -82,6 +84,7 @@ namespace DCS
 	public:
 		void tick();
 		std::pair<Room*, Point>otherSide(Room*curr) const;
+		std::pair<Room*, Room*>rooms();
 		bool weld(double amount);
 		void unweld(double amount);
 		//returns success state

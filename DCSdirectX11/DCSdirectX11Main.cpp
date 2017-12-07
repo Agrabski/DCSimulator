@@ -259,6 +259,9 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 		}
 		for ( auto k = currentScenario->ship->entityCbegin(); k != currentScenario->ship->entityCend(); k++ )
 			renderMobileEntity(context, *k);
+		for ( auto var = currentScenario->ship->doorBegin(); var != currentScenario->ship->doorEnd(); var++ )
+			renderDoor(context, **var);
+
 		Windows::Foundation::Point p= Windows::UI::Core::CoreWindow::GetForCurrentThread()->PointerPosition;
 		auto t = Windows::UI::Core::CoreWindow::GetForCurrentThread()->Bounds;
 		objectives.render(Point(p.X, p.Y) - Point(t.Left, t.Top),context);
@@ -377,8 +380,25 @@ void DCS::Dx11Engine::renderMobileEntity(ID2D1DeviceContext * context, MobileEnt
 	}
 }
 
-void DCS::Dx11Engine::FireManager::press(Point)
+void DCS::Dx11Engine::renderDoor(ID2D1DeviceContext * context, Door & toRender)
 {
+	ID2D1SolidColorBrush *brush;
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &brush);
+	Point tmp = toRender.position(toRender.rooms().first) + toRender.rooms().first->position + shipPosition;
+
+	if ( toRender.isItOpen() )
+		context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(tmp.first, tmp.second), 4, 4), brush);
+	else
+		context->FillEllipse(D2D1::Ellipse(D2D1::Point2F(tmp.first, tmp.second), 4, 4), brush);
+	brush->Release();
+}
+
+
+void DCS::Dx11Engine::FireManager::press(Point p)
+{
+	Point tmp = p - position;
+	for( auto var=fires.begin();var!=fires.end();var++ )
+		var->second.press(tmp);
 }
 
 void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
@@ -396,9 +416,9 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 		else
 			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
-		int sizeX = 250;
+		int sizeX = size.first;
 		int sizeY = (int)( fires.size() + 2 ) * 20;
-		size = Point(sizeX, sizeY);
+		size.second = sizeY;
 		IDWriteFactory* t;
 		IDWriteTextFormat*c;
 		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
@@ -411,34 +431,38 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 
 		for ( int i = 0; i < fires.size(); i++ )
 		{
-			swprintf(buffer, 100, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i]->whatType()), ( fires[i]->fireValue() * 100 ) / MAX_FIRE_VALUE, ( fires[i]->fireValue() ) % ( MAX_FIRE_VALUE / 100 ), enumToString(fires[i]->currentState().second), fires[i]->currentOxygenLevel());
+			swprintf(buffer, 100, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i].first->whatType()), ( fires[i].first->fireValue() * 100 ) / MAX_FIRE_VALUE, ( fires[i].first->fireValue() ) % ( MAX_FIRE_VALUE / 100 ), enumToString(fires[i].first->currentState().second), fires[i].first->currentOxygenLevel());
 			std::wstring t(buffer);
 			context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 15, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 15 + 15), brush);
+			fires[i].second.render(context, position);
 		}
 		delete[]buffer;
 		brush->Release();
+		brush1->Release();
 		t->Release();
 		c->Release();
 	}
+	else
+		size.second = 0;
 }
 
-DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1::ColorF::White, Point(250, 0), position)
+DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1::ColorF::White, Point(350, 0), position)
 {
 }
 
 void DCS::Dx11Engine::FireManager::add(Room * r)
 {
 	for ( auto i = fires.begin(); i != fires.end(); i++ )
-		if ( *i == r )
+		if ( i->first == r )
 			return;
-	fires.push_back(r);
+	fires.push_back(std::pair<Room*,DepressuriseButton>(r,DepressuriseButton(Point(250,30+20*fires.size()),Point(100,20),r)));
 }
 
 void DCS::Dx11Engine::FireManager::remove(const Room * const r)
 {
 	int k = (int)fires.size();
 	for ( auto i = fires.begin(); i != fires.end(); i++ )
-		if ( *i == r )
+		if ( i->first == r )
 		{
 			fires.erase(i);
 			if ( k == 1 )
@@ -812,4 +836,52 @@ void DCS::Dx11Engine::DraggableWindow::pointerPress(Point p)
 void DCS::Dx11Engine::DraggableWindow::pointerRelease()
 {
 	isDragged = false;
+}
+
+bool DCS::Dx11Engine::FireManager::DepressuriseButton::press(Point p)
+{
+	if ( p.first > position.first&&p.second > position.second&&p.first < ( position + size ).first&&p.second < ( position + size ).second )
+	{
+		isActive = !isActive;
+		controlled->setDesiredOxygen(isActive ? 0.0: 1000.0);
+		return true;
+	}
+	return false;
+}
+
+void DCS::Dx11Engine::FireManager::DepressuriseButton::render(ID2D1DeviceContext * context, Point offset)
+{
+	Point tmp = position + offset;
+	int sizeX = size.first;
+	int sizeY = size.second;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &text);
+	context->CreateSolidColorBrush(isActive ? active : inactive, &background);
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), background);
+
+
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer, 100,L"Depressurize");
+	std::wstring k(buffer);
+	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
+
+	delete[]buffer;
+	background->Release();
+	text->Release();
+	t->Release();
+	c->Release();
+
+}
+
+DCS::Dx11Engine::FireManager::DepressuriseButton::DepressuriseButton(Point position, Point size, Room * controlled)
+{
+	isActive = false;
+	this->controlled = controlled;
+	this->position = position;
+	this->size = size;
 }

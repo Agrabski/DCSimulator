@@ -38,10 +38,22 @@ namespace DCS
 		{
 			int oddFrame = 0;
 			int remainCount = 0;
-			std::vector<Room*>fires;
 			virtual void press(Point);
 			virtual void privateRender(ID2D1DeviceContext * context);
-
+			class DepressuriseButton
+			{
+				Room*controlled;
+				Point position;
+				Point size;
+				D2D1::ColorF active = D2D1::ColorF(D2D1::ColorF::Red);
+				D2D1::ColorF inactive = D2D1::ColorF(D2D1::ColorF::Green);
+				bool isActive;
+			public:
+				bool press(Point);
+				void render(ID2D1DeviceContext * context, Point offset);
+				DepressuriseButton(Point position, Point size, Room*controlled);
+			};
+			std::vector<std::pair<Room*,DepressuriseButton>>fires;
 		public:
 			FireManager(Point position);
 			void add(  Room *  r);
@@ -138,6 +150,11 @@ namespace DCS
 
 		}main;
 
+		class BreachScreen : public DraggableWindow
+		{
+
+		};
+
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 		void OnPointerReleased(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
@@ -146,6 +163,7 @@ namespace DCS
 		void gameRender(ID2D1DeviceContext * context);
 		void renderRoom(ID2D1DeviceContext * context, const Room&room);
 		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
+		void renderDoor(ID2D1DeviceContext * context, Door&toRender);
 	};
 }
 

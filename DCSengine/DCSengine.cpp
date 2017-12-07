@@ -145,6 +145,16 @@ std::vector<DCS::MobileEntity*>::const_iterator DCS::Ship::entityCend()
 	return mobileEntities.cend();
 }
 
+std::vector<DCS::Door*>::iterator DCS::Ship::doorBegin()
+{
+	return doors.begin();
+}
+
+std::vector<DCS::Door*>::iterator DCS::Ship::doorEnd()
+{
+	return doors.end();
+}
+
 void DCS::Ship::update()
 {
 	double oxygen = 0.0;
@@ -416,8 +426,8 @@ void DCS::Room::setDesiredOxygen(double value)
 double DCS::Room::supplyOxygen(double value)
 {
 	double tmp = oxygenLevel;
-	oxygenLevel = max(0, min(desiredOxygen, oxygenLevel + value));
-	return oxygenLevel - tmp;
+	oxygenLevel =max(0, max(oxygenLevel-.1, min(desiredOxygen, oxygenLevel + value)));
+	return oxygenLevel - tmp != 0 ? oxygenLevel - tmp<0?value- oxygenLevel + tmp : oxygenLevel - tmp : value;
 }
 
 double DCS::Room::generateOxygen()
@@ -642,6 +652,11 @@ std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr) const
 	if ( curr == secondSide.first )
 		return firstSide;
 	throw std::runtime_error("Requested room is not connected");
+}
+
+std::pair<DCS::Room*, DCS::Room*> DCS::Door::rooms()
+{
+	return std::pair<Room*, Room*>(firstSide.first,secondSide.first);
 }
 
 bool DCS::Door::weld(double amount)
