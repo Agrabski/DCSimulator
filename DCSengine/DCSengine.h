@@ -21,6 +21,7 @@
 #define FIRE_START_VALUE 10
 #define DAMAGE_EFFICENCY_MULTIPLIER .5
 #define EXTINGUISH_CONSTANT .5
+#define MAX_OXYGEN_FLOW 1.0
 
 #pragma endregion
 
@@ -42,6 +43,7 @@ namespace DCS
 	class Scenario;
 	class Event;
 	class HullBreach;
+	class Door;
 
 
 	enum ScenarioResult { Continue, Lost, Won };
@@ -49,13 +51,15 @@ namespace DCS
 
 	class Ship
 	{
-		std::vector<HullBreach>breaches;
+		std::vector<HullBreach*>breaches;
 		std::vector<Room*>rooms;
+		std::vector<Door*>doors;
 	public:
 		std::vector<Point>silvete;
-
+		void addBreach(HullBreach*);
 		std::vector<MobileEntity*>mobileEntities;
 		Room *findRoom(Point);
+		std::vector<Room*>::iterator roomBegin();
 		std::vector<Room*>::const_iterator roomCbegin();
 		std::vector<Room*>::const_iterator roomCend();
 		std::vector<MobileEntity*>::const_iterator entityCbegin();
@@ -69,10 +73,14 @@ namespace DCS
 	{
 		std::pair<Room*, Point> firstSide;
 		std::pair<Room*, Point> secondSide;
-		bool isOpen = false;
+		bool isOpen;
 		double isWeldedShut = 0.0f;
-		bool works = true;
+		bool works;
+		bool stayClosed = true;
+		int ticsToClose = 50;
+		int ticsUntilClose = ticsToClose;
 	public:
+		void tick();
 		std::pair<Room*, Point>otherSide(Room*curr) const;
 		bool weld(double amount);
 		void unweld(double amount);
@@ -105,7 +113,7 @@ namespace DCS
 	public:
 		std::vector<Door*>::iterator giveDoors();
 		std::vector<Door*>::iterator doorsEnd();
-		const Door& findDoor(Room*next);
+		Door& findDoor(Room*next);
 		bool isOnFire() const;
 		Point position;
 		std::vector<Point>silvete;
@@ -132,6 +140,7 @@ namespace DCS
 		MobileEntity*findEntity(Point, MobileEntity*);
 		void suckOxygen(double value);
 		void forceOxygen(double value);
+		double roomVolume();
 	private:
 		RoomType type;
 
@@ -276,9 +285,10 @@ namespace DCS
 		double size;
 		const static double pressureOverSizeToEscalate;
 		const static int maxSize;
-		static int oxygenFlowMultiplier;
+		static double oxygenFlowMultiplier;
 		static int pullMultiplier;
 	public:
+		HullBreach(Room*, double size);
 		void timerTick();
 	};
 }

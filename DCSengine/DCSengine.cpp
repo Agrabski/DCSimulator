@@ -6,7 +6,7 @@
 
 const double DCS::HullBreach::pressureOverSizeToEscalate = .75;
 const int DCS::HullBreach::maxSize = 100;
-int DCS::HullBreach::oxygenFlowMultiplier = .1;
+double DCS::HullBreach::oxygenFlowMultiplier = .01;
 
 
 bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
@@ -104,6 +104,11 @@ std::vector<DCS::Room*>::iterator DCS::MobileEntity::end()
 	return path.end();
 }
 
+void DCS::Ship::addBreach(HullBreach *arg)
+{
+	breaches.push_back(arg);
+}
+
 DCS::Room * DCS::Ship::findRoom(Point p)
 {
 	for ( std::vector<Room*>::iterator i = rooms.begin(); i != rooms.end(); i++ )
@@ -113,6 +118,11 @@ DCS::Room * DCS::Ship::findRoom(Point p)
 			return *i;
 	}
 	return nullptr;
+}
+
+std::vector<DCS::Room*>::iterator DCS::Ship::roomBegin()
+{
+	return rooms.begin();
 }
 
 std::vector<DCS::Room*>::const_iterator DCS::Ship::roomCbegin()
@@ -149,7 +159,12 @@ void DCS::Ship::update()
 	}
 	for each ( auto var in breaches )
 	{
-		var.timerTick();
+		var->timerTick();
+	}
+
+	for each ( auto var in doors )
+	{
+		var->tick();
 	}
 
 	for ( std::vector<MobileEntity*>::iterator i = mobileEntities.begin(); i != mobileEntities.end(); i++ )
@@ -199,12 +214,15 @@ DCS::Ship::Ship()
 	Door*tmp = new Door(bridge, DCS::Point(40, 25), corridor, DCS::Point(0, 10));
 	bridge->setConnection(tmp);
 	corridor->setConnection(tmp);
+	doors.push_back(tmp);
 	tmp = new Door(corridor, DCS::Point(40, 10), engineering, DCS::Point(0, 25));
 	corridor->setConnection(tmp);
 	engineering->setConnection(tmp);
+	doors.push_back(tmp);
 	tmp = new Door(engineering, Point(20, 85), lifeSupport, Point(20, 0));
 	engineering->setConnection(tmp);
 	lifeSupport->setConnection(tmp);
+	doors.push_back(tmp);
 	bridge->addEntity(entity);
 	lifeSupport->addEntity(entity1);
 	rooms.push_back(bridge);
@@ -235,7 +253,7 @@ std::vector<DCS::Door*>::iterator DCS::Room::doorsEnd()
 	return doors.end();
 }
 
-const DCS::Door& DCS::Room::findDoor(Room * next)
+DCS::Door& DCS::Room::findDoor(Room * next)
 {
 	std::pair<Room*, Point> k;
 	for ( int i = 0; i < doors.size(); i++ )
@@ -264,9 +282,10 @@ void DCS::Room::update()
 			fire += FIRE_SPREAD_MODIFIER*fire;
 		if ( fire > MIN_FIRE_VALUE + rand() % FIRE_SPREAD_CHANCE )
 			doors[rand() % doors.size()]->otherSide(this).first->setOnFire(log(fire / 10) / 10.0);
-		for each( auto t in doors )
-			oxygenLevel -= t->leakOxygen(oxygenLevel*volume, this, oxygenLevel) / volume;
 	}
+	for each( auto t in doors )
+		oxygenLevel -= t->leakOxygen(min(oxygenLevel*volume, MAX_OXYGEN_FLOW), this, oxygenLevel) / volume;
+
 }
 
 DCS::Room::Room(Point position, std::vector<Point> Silvete, std::vector<StaticEntity> entities, RoomType type, double OxygenGeneration)
@@ -440,6 +459,11 @@ void DCS::Room::forceOxygen(double value)
 	oxygenLevel =min(oxygenLevel+ value / volume,MAX_OVERPRESSURE);
 }
 
+double DCS::Room::roomVolume()
+{
+	return volume;
+}
+
 DCS::Point DCS::operator+(const Point & left, const Point & right)
 {
 	return Point(left.first + right.first, left.second + right.second);
@@ -545,7 +569,7 @@ DCS::Room * DCS::MobileEntity::update()
 
 		if ( position == tmp )
 		{
-			auto tmpDoor = currentRoom->findDoor(path[0]);
+			Door& tmpDoor = currentRoom->findDoor(path[0]);
 			tmpDoor.open();
 			position = tmpDoor.otherSide(currentRoom).second;
 			currentRoom = path[0];
@@ -600,6 +624,17 @@ DCS::Room * DCS::StaticEntity::update()
 	throw std::runtime_error("not implemented");
 }
 
+void DCS::Door::tick()
+{
+	if ( isOpen )
+	{
+		if ( ticsUntilClose == 0 )
+			close();
+		else
+			ticsUntilClose--;
+	}
+}
+
 std::pair<DCS::Room*, DCS::Point> DCS::Door::otherSide(Room * curr) const
 {
 	if ( curr == firstSide.first )
@@ -634,6 +669,7 @@ bool DCS::Door::open()
 		return true;
 	if ( works&&isWeldedShut == 0 )
 	{
+		ticsUntilClose = ticsToClose;
 		isOpen = true;
 		return true;
 	}
@@ -672,6 +708,8 @@ DCS::Door::Door(Room *r1, Point p1, Room *r2, Point p2)
 {
 	firstSide = std::pair<Room*, Point>(r1, p1);
 	secondSide = std::pair<Room*, Point>(r2, p2);
+	works = true;
+	isOpen = false;
 }
 
 DCS::Point DCS::Door::position(Room * t)
@@ -684,7 +722,10 @@ double DCS::Door::leakOxygen(double value, Room * source, double precentage)
 	if(!isOpen )
 		return 0.0;
 	Room*tmp = otherSide(source).first;
-	tmp->forceOxygen(value*max( 1.0 - tmp->currentOxygenLevel() / precentage,0.0 ));
+	double n = value*max(1.0 - tmp->currentOxygenLevel() / precentage, 0.0);;
+
+	tmp->forceOxygen(n);
+	return n;
 }
 
 DCS::Objective::Objective(Ship * ref)
@@ -850,6 +891,12 @@ bool DCS::TimeTrigger::operator()(int tics, Scenario * ref)
 DCS::TimeTrigger::TimeTrigger(int n)
 {
 	ticsToTrigger = n;
+}
+
+DCS::HullBreach::HullBreach(Room *r, double size)
+{
+	affectedRoom = r;
+	this->size = size;
 }
 
 void DCS::HullBreach::timerTick()

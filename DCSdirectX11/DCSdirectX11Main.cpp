@@ -233,6 +233,9 @@ void DCS::Dx11Engine::OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Wind
 {
 	if ( args->VirtualKey == Windows::System::VirtualKey::Escape )
 		switchPause();
+	else
+		if ( args->VirtualKey == Windows::System::VirtualKey::Space )
+			this->currentScenario->ship->addBreach(new HullBreach(*currentScenario->ship->roomBegin(), 50));
 }
 
 void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
@@ -258,8 +261,8 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 			renderMobileEntity(context, *k);
 		Windows::Foundation::Point p= Windows::UI::Core::CoreWindow::GetForCurrentThread()->PointerPosition;
 		auto t = Windows::UI::Core::CoreWindow::GetForCurrentThread()->Bounds;
-		fManager.render(Point(p.X,p.Y)- Point(t.Left, t.Top),context);
 		objectives.render(Point(p.X, p.Y) - Point(t.Left, t.Top),context);
+		fManager.render(Point(p.X,p.Y)- Point(t.Left, t.Top),context);
 
 
 		if ( state != Continue )
@@ -421,7 +424,6 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 
 DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1::ColorF::White, Point(250, 0), position)
 {
-	this->position = position;
 }
 
 void DCS::Dx11Engine::FireManager::add(Room * r)
@@ -782,6 +784,7 @@ DCS::Dx11Engine::DraggableWindow::DraggableWindow(D2D1::ColorF::Enum c, Point si
 	this->size = size;
 	this->position = position;
 	dragArea = Point(position.first, 20);
+	isDragged = false;
 }
 
 void DCS::Dx11Engine::DraggableWindow::render(DCS::Point p, ID2D1DeviceContext * context)

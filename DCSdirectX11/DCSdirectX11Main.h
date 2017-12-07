@@ -46,7 +46,7 @@ namespace DCS
 			FireManager(Point position);
 			void add(  Room *  r);
 			void remove(const Room * const r);
-		}fManager = FireManager(Point(500, 150));
+		}fManager = FireManager(Point(500, 100));
 
 		class EscMenu
 		{
@@ -77,7 +77,7 @@ namespace DCS
 			EscMenu(Point p);
 			PressResult OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 			void render(ID2D1DeviceContext * context) const;
-		}escMenu = EscMenu(Point(600, 100));
+		}escMenu = EscMenu(Point(0, 0));
 
 		class ObjectiveScreen : public DraggableWindow
 		{
