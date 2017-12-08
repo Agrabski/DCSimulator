@@ -6,7 +6,7 @@
 
 const double DCS::HullBreach::pressureOverSizeToEscalate = .75;
 const int DCS::HullBreach::maxSize = 100;
-double DCS::HullBreach::oxygenFlowMultiplier = .01;
+double DCS::HullBreach::oxygenFlowMultiplier = .001;
 
 
 bool contains(std::vector<DCS::Room*>&t, DCS::Room*k)
@@ -102,6 +102,24 @@ std::vector<DCS::Room*>::iterator DCS::MobileEntity::pathIterator()
 std::vector<DCS::Room*>::iterator DCS::MobileEntity::end()
 {
 	return path.end();
+}
+
+std::vector<DCS::HullBreach*>::iterator DCS::Ship::breachBegin()
+{
+	return breaches.begin();
+}
+
+std::vector<DCS::HullBreach*>::iterator DCS::Ship::breachEnd()
+{
+	return breaches.end();
+}
+
+DCS::Room * DCS::Ship::breachesTop()
+{
+	if ( breaches.size() != 0 )
+		return breaches.back()->affected();
+	else
+		return nullptr;
 }
 
 void DCS::Ship::addBreach(HullBreach *arg)
@@ -908,8 +926,9 @@ DCS::TimeTrigger::TimeTrigger(int n)
 	ticsToTrigger = n;
 }
 
-DCS::HullBreach::HullBreach(Room *r, double size)
+DCS::HullBreach::HullBreach(Room *r, double size, Point p)
 {
+	absolutePosition = p;
 	affectedRoom = r;
 	this->size = size;
 }
@@ -919,4 +938,14 @@ void DCS::HullBreach::timerTick()
 	if ( affectedRoom->currentOxygenLevel() / size > pressureOverSizeToEscalate )
 		size = min(maxSize, size + affectedRoom->currentOxygenLevel() / MAX_OXYGEN * 2);
 	affectedRoom->suckOxygen(size*oxygenFlowMultiplier);
+}
+
+DCS::Room * DCS::HullBreach::affected() const
+{
+	return affectedRoom;
+}
+
+DCS::Point DCS::HullBreach::position() const
+{
+	return absolutePosition;
 }

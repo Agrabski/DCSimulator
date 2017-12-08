@@ -17,14 +17,31 @@ namespace DCS
 	{
 		unsigned int oddFrame = 0;
 
+		template<typename t> class Button
+		{
+			t type;
+			t nullValue;
+			Point size;
+			Point position;
+			std::wstring text;
+			float textColor[4];
+			float color[4];
+		public:
+			Button(t type,t nullValue, std::wstring name, Point size, Point position, float textColor[4],float color[4]);
+			void render(ID2D1DeviceContext * context, Point offset) const;
+			t OnPointerPressed(Point position);
+		};
+
 		class DraggableWindow
 		{
 			bool isDragged;
 			D2D1::ColorF::Enum color = D2D1::ColorF::White;
 		protected:
+			bool isVisible;
 			Point dragArea;
 			Point size;
 			Point position;
+			Point grabPoint;
 			virtual void privateRender(ID2D1DeviceContext * context)=0;
 			virtual  void press(DCS::Point)=0;
 			DraggableWindow(D2D1::ColorF::Enum, Point size, Point position);
@@ -65,31 +82,15 @@ namespace DCS
 			float color[4] = { .0f, .0f, .0f ,1 };
 			int sizeX;
 			int sizeY;
-			enum EscMenuButton {Resume,Exit,Settings,Null};
-			class Button
-			{
-				EscMenuButton type;
-			public:
-				Button(Point,EscMenuButton);
-				~Button() = default;
-				void render(ID2D1DeviceContext * context, Point offset) const;
-				EscMenuButton OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, Point offset);
-			private:
-				float textColor[4]= { .0f, .0f, .0f, 1 };
-				float color[4] = { 1.f, 1.f, 1.0f ,1 };
-				static wchar_t*enumToChar(EscMenuButton);
-				Point position;
-				int sizeX=200;
-				int sizeY=100;
-			};
-			std::vector<Button> buttons;
+			enum EscMenuButton {Resume, Save,Exit,Settings,Null};
+			std::vector<Button<EscMenuButton>> buttons;
 			Point position;
 		public:
 			enum PressResult {None, ReturnToMain,ExitMenu};
 			EscMenu(Point p);
 			PressResult OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 			void render(ID2D1DeviceContext * context) const;
-		}escMenu = EscMenu(Point(0, 0));
+		}escMenu = EscMenu(Point(600, 300));
 
 		class ObjectiveScreen : public DraggableWindow
 		{
@@ -152,8 +153,15 @@ namespace DCS
 
 		class BreachScreen : public DraggableWindow
 		{
-
-		};
+			int remainCount;
+			int oddFrame;
+			std::vector<Room*>rooms;
+			virtual void privateRender(ID2D1DeviceContext * context);
+			virtual  void press(DCS::Point);
+		public:
+			BreachScreen(Point p);
+			void addBreach(Room*);
+		} breaches = BreachScreen(Point(600, 600));
 
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
@@ -164,6 +172,7 @@ namespace DCS
 		void renderRoom(ID2D1DeviceContext * context, const Room&room);
 		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
 		void renderDoor(ID2D1DeviceContext * context, Door&toRender);
+		void renderBreach(ID2D1DeviceContext * context, const HullBreach&toRender);
 	};
 }
 

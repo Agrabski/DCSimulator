@@ -55,6 +55,9 @@ namespace DCS
 		std::vector<Room*>rooms;
 		std::vector<Door*>doors;
 	public:
+		std::vector<HullBreach*>::iterator breachBegin();
+		std::vector<HullBreach*>::iterator breachEnd();
+		Room*breachesTop();
 		std::vector<Point>silvete;
 		void addBreach(HullBreach*);
 		std::vector<MobileEntity*>mobileEntities;
@@ -290,8 +293,11 @@ namespace DCS
 		const static int maxSize;
 		static double oxygenFlowMultiplier;
 		static int pullMultiplier;
+		Point absolutePosition;
 	public:
-		HullBreach(Room*, double size);
+		HullBreach(Room*, double size, Point p);
 		void timerTick();
+		Room *affected() const;
+		Point position() const;
 	};
 }
