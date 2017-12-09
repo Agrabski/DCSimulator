@@ -299,5 +299,6 @@ namespace DCS
 		void timerTick();
 		Room *affected() const;
 		Point position() const;
+		int whatSize() const;
 	};
 }

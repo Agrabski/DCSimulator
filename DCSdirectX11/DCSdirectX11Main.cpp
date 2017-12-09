@@ -388,7 +388,7 @@ void DCS::Dx11Engine::renderBreach(ID2D1DeviceContext * context, const HullBreac
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &brush);
 	else
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), &brush);
-	context->FillEllipse(D2D1::Ellipse(D2D1::Point2F(( toRender.position() + shipPosition ).first, ( toRender.position() + shipPosition ).second), 5, 10), brush);
+	context->FillEllipse(D2D1::Ellipse(D2D1::Point2F(( toRender.position() + shipPosition ).first, ( toRender.position() + shipPosition ).second), 5, toRender.whatSize()/10), brush);
 	brush->Release();
 
 }
@@ -962,4 +962,66 @@ void DCS::Dx11Engine::BreachScreen::addBreach(Room *r)
 	else
 		return;
 	rooms.push_back(r);
+}
+
+template<typename ButtonResult, typename HoverResult>
+HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::render(DCS::Point offset, ID2D1DeviceContext * context, Point cursor)
+{
+	ID2D1SolidColorBrush *textBrush;
+	ID2D1SolidColorBrush *backgroundBrush;
+	HoverResult tmpResult;
+
+	Point relativeCursor = cursor - position - offset;
+	if ( relativeCursor.first > 0 && relativeCursor.second > 0 && relativeCursor < size.first&&relativeCursor.second < size.second )
+	{
+		context->CreateSolidColorBrush(D2D1::ColorF(activeBackColor[0], activeBackColor[1], activeBackColor[2], activeBackColor[3]), &backgroundBrush);
+		tmpResult = result;
+	}
+	else
+	{
+		context->CreateSolidColorBrush(D2D1::ColorF(backColor[0], backColor[1], backColor[2], backColor[3]), &backgroundBrush);
+		tmpResult = nullHover;
+	}
+	Point tmp = offset + position;
+	context->FillRectangle(D2D1::RectF(tmp.first, tmp.second, ( tmp + size ).first, ( tmp + size ).second), backgroundBrush);
+	
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+
+	for each ( auto var in texts )
+	{
+		tmp = offset + position + var.second;
+		auto tmpRect = D2D1::RectF(tmp.first, tmp.second, tmp.first + var.first.length() * 10, tmp.second + 20);
+		context->DrawText(*var.first, (*var.first).length, capacity, tmpRect, textBrush);
+	}
+
+	for each ( auto var in buttons )
+	{
+		tmp = offset + position;
+		var.render(context, tmp);
+	}
+	t->Release();
+	c->Release();
+	textBrush->Release();
+	backgroundBrush->Release();
+	return tmpResult;
+}
+
+template<typename ButtonResult, typename HoverResult>
+ButtonResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::pointerPress(Point p)
+{
+	for each ( auto var in buttons )
+	{
+		auto tmp = var.onPointerPress(p);
+		if ( tmp != nullResult )
+			return tmp;
+	}
+	return nullResult;
+}
+
+DCS::Dx11Engine::SmartwString::SmartwString(std::wstring whatFormat)
+{
+	format = whatFormat;
 }

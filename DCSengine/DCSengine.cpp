@@ -949,3 +949,8 @@ DCS::Point DCS::HullBreach::position() const
 {
 	return absolutePosition;
 }
+
+int DCS::HullBreach::whatSize() const
+{
+	return (int) size;
+}

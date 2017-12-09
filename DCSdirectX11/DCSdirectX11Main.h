@@ -17,6 +17,15 @@ namespace DCS
 	{
 		unsigned int oddFrame = 0;
 
+		class SmartwString
+		{
+		protected:
+			std::wstring format;
+		public:
+			virtual std::wstring operator*()=0;
+			SmartwString(std::wstring whatFormat);
+		};
+
 		template<typename t> class Button
 		{
 			t type;
@@ -30,6 +39,24 @@ namespace DCS
 			Button(t type,t nullValue, std::wstring name, Point size, Point position, float textColor[4],float color[4]);
 			void render(ID2D1DeviceContext * context, Point offset) const;
 			t OnPointerPressed(Point position);
+		};
+
+		template<typename ButtonResult, typename HoverResult> class HoverSection
+		{
+			Point position;
+			Point size;
+			ButtonResult nullResult;
+			HoverResult result;
+			HoverResult nullHover;
+			std::vector<std::pair<SmartwString, Point>>texts;
+			std::vector < Button<ButtonResult>>buttons;
+			float backColor[4];
+			float textColor[4];
+			float activeBackColor[4];
+		public:
+			HoverResult render(DCS::Point offset, ID2D1DeviceContext * context, Point);
+			ButtonResult pointerPress(Point);
+			HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartwString, Point>>textVector, std::vector < Button<ButtonResult>>buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover);
 		};
 
 		class DraggableWindow
@@ -46,7 +73,7 @@ namespace DCS
 			virtual  void press(DCS::Point)=0;
 			DraggableWindow(D2D1::ColorF::Enum, Point size, Point position);
 		public:
-			void render(DCS::Point, ID2D1DeviceContext * context);
+			void render(DCS::Point offset, ID2D1DeviceContext * context);
 			void pointerPress(Point);
 			void pointerRelease();
 		};
@@ -162,6 +189,11 @@ namespace DCS
 			BreachScreen(Point p);
 			void addBreach(Room*);
 		} breaches = BreachScreen(Point(600, 600));
+
+		class RoomManager : DraggableWindow
+		{
+
+		};
 
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
