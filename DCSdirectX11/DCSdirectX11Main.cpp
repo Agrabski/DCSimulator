@@ -432,7 +432,7 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 
 		for ( int i = 0; i < fires.size(); i++ )
 		{
-			swprintf(buffer, 100, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i].first->whatType()), ( fires[i].first->fireValue() * 100 ) / MAX_FIRE_VALUE, ( fires[i].first->fireValue() ) % ( MAX_FIRE_VALUE / 100 ), enumToString(fires[i].first->currentState().second), fires[i].first->currentOxygenLevel());
+			swprintf(buffer, 100, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i].first->whatType()).c_str(), ( fires[i].first->fireValue() * 100 ) / MAX_FIRE_VALUE, ( fires[i].first->fireValue() ) % ( MAX_FIRE_VALUE / 100 ), enumToString(fires[i].first->currentState().second).c_str(), fires[i].first->currentOxygenLevel());
 			std::wstring t(buffer);
 			context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 20, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 20 + 20), brush);
 			fires[i].second.render(context, position);
@@ -474,35 +474,35 @@ void DCS::Dx11Engine::FireManager::remove(const Room * const r)
 		}
 }
 
-wchar_t * DCS::enumToString(Room::RoomType t)
+std::wstring  DCS::enumToString(Room::RoomType t)
 {
 	switch ( t )
 	{
 	case DCS::Room::Bridge:
-		return L"Bridge";
+		return std::wstring(L"Bridge");
 	case DCS::Room::Engineering:
-		return L"Engineering";
+		return std::wstring( L"Engineering");
 	case DCS::Room::Corridor:
-		return L"Corridor";
+		return std::wstring(L"Corridor");
 	case DCS::Room::LifeSupport:
-		return  L"Life Support";
+		return  std::wstring(L"Life Support");
 	default:
 		throw std::runtime_error("Error in enum to string");
 	}
 }
 
-wchar_t * DCS::enumToString(DamageState t)
+std::wstring DCS::enumToString(DamageState t)
 {
 	switch ( t )
 	{
 	case Operational:
-		return L"Operational";
+		return std::wstring(L"Operational");
 	case Damaged:
-		return L"Damaged";
+		return std::wstring(L"Damaged");
 	case OutOfAction:
-		return L"Out of action";
+		return std::wstring(L"Out of action");
 	case Destroyed:
-		return L"Destroyed";
+		return std::wstring(L"Destroyed");
 	default:
 		throw std::runtime_error("Error in enum to string");
 
@@ -689,7 +689,7 @@ void DCS::Dx11Engine::ObjectiveScreen::privateRender(ID2D1DeviceContext * contex
 		f += 20;
 		for each ( auto var in objective->roomsRequired() )
 		{
-			swprintf(buffer, 100, L"* %s must be %s or better", enumToString(var.first->whatType()), enumToString(var.second));
+			swprintf(buffer, 100, L"* %s must be %s or better", enumToString(var.first->whatType()).c_str(), enumToString(var.second).c_str());
 			k = std::wstring(buffer);
 			context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second + f, (float)tmp.first + size.first, (float)tmp.second + sizeY), text);
 			f += 20;
@@ -923,10 +923,9 @@ void DCS::Dx11Engine::BreachScreen::privateRender(ID2D1DeviceContext * context)
 		context->DrawText(buffer, 15, c, D2D1::RectF((float)position.first + size.first / 2 - 50, (float)position.second, (float)position.first + sizeX, (float)position.second + 10), brush);
 		swprintf(buffer, 100, L"Room - Oxygen");
 		context->DrawText(buffer, 14, c, D2D1::RectF((float)position.first + 5, (float)position.second + 20, (float)position.first + sizeX, (float)position.second + 20), brush);
-
 		for ( int i = 0; i < rooms.size(); i++ )
 		{
-			swprintf(buffer, 100, L"%s  %03d%%", DCS::enumToString(rooms[i]->whatType()), ( rooms[i]->currentOxygenLevel()) );
+			swprintf(buffer, 100, L"%s  %03d%%", DCS::enumToString(rooms[i]->whatType()).c_str(), ( rooms[i]->currentOxygenLevel()) );
 			std::wstring t(buffer);
 			context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 20, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 20 + 20), brush);
 		}
@@ -1021,7 +1020,114 @@ ButtonResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::pointerPr
 	return nullResult;
 }
 
-DCS::Dx11Engine::SmartwString::SmartwString(std::wstring whatFormat)
+template<typename ButtonResult, typename HoverResult>
+DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartWString, Point>> textVector, std::vector<Button<ButtonResult>> buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover)
+{
+	this->size = size;
+	this->position = relativePosition;
+	texts = textVector;
+	for ( int i = 0; i < 4; i++ )
+		this->backColor[i] = backColor[i];
+	for ( int i = 0; i < 4; i++ )
+		this->textColor[i] = textColor[i];
+	for ( int i = 0; i < 4; i++ )
+		this->activeBackColor[i] = activeBackColor[i];
+	this->nullResult = nullResult;
+	this->result = result;
+	this->nullHover = nullHover;
+}
+
+DCS::Dx11Engine::SmartWString::StorageType::StorageType(std::function<std::wstring( )> *f)
+{
+	function = f;
+}
+
+DCS::Dx11Engine::SmartWString::StorageType::~StorageType()
+{
+}
+
+std::wstring DCS::Dx11Engine::SmartWString::operator*()
+{
+	std::wstring tmp;
+	std::wstring tmpString;
+	std::vector<StorageType>::iterator k = argVector.begin();
+	for( std::wstring::iterator i=format.begin();i!=format.end();i++ )
+		switch ( *i )
+		{
+		case L'%':
+		{
+			switch ( *++i )
+			{
+			case L'!':
+				tmp.append((* ( *k ).function )( ));
+				k++;
+				break;
+			case L'd':
+			case L'D':
+				tmp.append(std::to_wstring(( *(double*)( *k ).pointer )));
+				k++;
+				break;
+			case L's':
+			case L'S':
+				tmp.append(( *(std::wstring*)( *k ).pointer ));
+				k++;
+				break;
+
+			case L'i':
+			case L'I':
+				tmp.append(std::to_wstring(( *(int*)( *k ).pointer )));
+				k++;
+				break;
+			case L'0':
+				tmpString = std::wstring();
+				tmpString.push_back(L'%');
+				while ( *i != L'd' )
+				{
+					tmpString.push_back(*i);
+					i++;
+				}
+				tmpString.push_back(L'd');
+				wchar_t buffer[50];
+				swprintf(buffer, tmpString.c_str(), ( *(int*)( *k ).pointer ));
+				tmp.append(buffer);
+				delete[]buffer;
+				break;
+			default:
+				tmp.push_back(*i);
+			}
+			break;
+		}
+
+
+		default:
+			tmp.push_back(*i);
+			break;
+		}
+
+	return tmp;
+}
+
+DCS::Dx11Engine::SmartWString::SmartWString(std::wstring whatFormat, std::vector<StorageType> v)
 {
 	format = whatFormat;
+	argVector = v;
+}
+
+DCS::Dx11Engine::SmartWString::~SmartWString()
+{
+	while ( !argVector.empty() )
+		if ( format.substr(0, 2) == std::wstring(L"%!") )
+		{
+			delete argVector.front().function;
+			argVector.erase(argVector.begin());
+		}
+		else
+			if ( format.front() == L'%' )
+			{
+				format.erase(format.begin());
+				format.erase(format.begin());
+				argVector.erase(argVector.begin());
+			}
+			else
+				format.erase(format.begin());
 }

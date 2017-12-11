@@ -7,24 +7,16 @@
 #include"../DCSengine/DCSengine.h"
 #include <Mmsystem.h>
 #include <mciapi.h>
+#include <functional>
 
 namespace DCS
 {
-	wchar_t* enumToString(Room::RoomType t);
-	wchar_t* enumToString(DamageState t);
+	std::wstring enumToString(Room::RoomType t);
+	std::wstring enumToString(DamageState t);
 
 	class Dx11Engine :public Game
 	{
 		unsigned int oddFrame = 0;
-
-		class SmartwString
-		{
-		protected:
-			std::wstring format;
-		public:
-			virtual std::wstring operator*()=0;
-			SmartwString(std::wstring whatFormat);
-		};
 
 		template<typename t> class Button
 		{
@@ -41,6 +33,38 @@ namespace DCS
 			t OnPointerPressed(Point position);
 		};
 
+		//example for smartwstring
+
+		//std::vector<SmartWString::StorageType> tmpVector;
+
+		//tmpVector.push_back(new std::function<std::wstring()>(std::bind(( std::wstring(*)( DCS::Room::RoomType ) )enumToString, std::bind(&Room::whatType, rooms[0])( ))));
+		//tmpVector.push_back(( new  std::function<std::wstring()>(std::bind(( std::wstring(*)( int ) )std::to_wstring, std::bind(&Room::currentOxygenLevel, rooms[0]))) ));
+
+		//SmartWString string = SmartWString(std::wstring(L"%! %!%%"), tmpVector);
+		//auto l = *string;
+
+
+
+
+		class SmartWString
+		{
+		public:
+			union StorageType
+			{
+				StorageType(std::function<std::wstring( )>*f);
+				~StorageType();
+				std::function<std::wstring()> *function;
+				void * pointer;
+			};
+		private:
+			std::vector<StorageType> argVector;
+			std::wstring format;
+		public:
+			std::wstring operator*();
+			SmartWString(std::wstring whatFormat, std::vector<StorageType> v);
+			~SmartWString();
+		};
+
 		template<typename ButtonResult, typename HoverResult> class HoverSection
 		{
 			Point position;
@@ -48,7 +72,7 @@ namespace DCS
 			ButtonResult nullResult;
 			HoverResult result;
 			HoverResult nullHover;
-			std::vector<std::pair<SmartwString, Point>>texts;
+			std::vector<std::pair<std::SmartWString, Point>>texts;
 			std::vector < Button<ButtonResult>>buttons;
 			float backColor[4];
 			float textColor[4];
@@ -56,7 +80,7 @@ namespace DCS
 		public:
 			HoverResult render(DCS::Point offset, ID2D1DeviceContext * context, Point);
 			ButtonResult pointerPress(Point);
-			HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartwString, Point>>textVector, std::vector < Button<ButtonResult>>buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover);
+			HoverSection(Point size, Point relativePosition, std::vector<std::pair<std::SmartWString, Point>>textVector, std::vector < Button<ButtonResult>>buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover);
 		};
 
 		class DraggableWindow
