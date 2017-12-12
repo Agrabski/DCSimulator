@@ -147,6 +147,8 @@ namespace DCS
 		void suckOxygen(double value);
 		void forceOxygen(double value);
 		double roomVolume();
+		double firePrecentage();
+		double oxygenWanted();
 	private:
 		RoomType type;
 

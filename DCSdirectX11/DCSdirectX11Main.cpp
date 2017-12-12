@@ -10,6 +10,8 @@ using namespace Windows::System::Threading;
 using namespace Concurrency;
 
 
+DCS::Point DCS::Dx11Engine::shipPosition = DCS::Point(100, 100);
+
 
 // Loads and initializes application assets when the application is loaded.
 DCSdirectX11Main::DCSdirectX11Main(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
@@ -397,8 +399,12 @@ void DCS::Dx11Engine::renderBreach(ID2D1DeviceContext * context, const HullBreac
 void DCS::Dx11Engine::FireManager::press(Point p)
 {
 	Point tmp = p - position;
-	for( auto var=fires.begin();var!=fires.end();var++ )
-		var->second.press(tmp);
+	for ( auto var = fires.begin(); var != fires.end(); var++ )
+	{
+		Room*  n = var->pointerPress(tmp);
+		if ( n != nullptr )
+			n->oxygenWanted()!=0?n->setDesiredOxygen(0): n->setDesiredOxygen(1000);
+	}
 }
 
 void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
@@ -430,13 +436,19 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 		swprintf(buffer, 100, L"Room - Fire - Functionality - Oxygen");
 		context->DrawText(buffer, 37, c, D2D1::RectF((float)position.first + 5, (float)position.second + 20, (float)position.first + sizeX, (float)position.second + 20), brush);
 
-		for ( int i = 0; i < fires.size(); i++ )
+		Windows::Foundation::Point p = Windows::UI::Core::CoreWindow::GetForCurrentThread()->PointerPosition;
+		auto z = Windows::UI::Core::CoreWindow::GetForCurrentThread()->Bounds;
+
+		Point tmpPoint = Point(p.X, p.Y) - Point(z.Left, z.Top);
+
+		for each ( auto var in fires )
 		{
-			swprintf(buffer, 100, L"%s  %03d.%d%% %s %03d%%", DCS::enumToString(fires[i].first->whatType()).c_str(), ( fires[i].first->fireValue() * 100 ) / MAX_FIRE_VALUE, ( fires[i].first->fireValue() ) % ( MAX_FIRE_VALUE / 100 ), enumToString(fires[i].first->currentState().second).c_str(), fires[i].first->currentOxygenLevel());
-			std::wstring t(buffer);
-			context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 20, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 20 + 20), brush);
-			fires[i].second.render(context, position);
+			auto pointer = var.render(position, context, tmpPoint);
+			if ( pointer != nullptr )
+				context->DrawLine(D2D1::Point2F((pointer->position+shipPosition).first, (pointer->position+ shipPosition).second), D2D1::Point2F( (var.location()+position).first, (var.location() + position ).second+5), brush);
+
 		}
+
 		delete[]buffer;
 		brush->Release();
 		brush1->Release();
@@ -453,19 +465,43 @@ DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1:
 {
 }
 
+
+
+
 void DCS::Dx11Engine::FireManager::add(Room * r)
 {
+	typedef std::function<std::wstring()> f;
+	typedef SmartWString::StorageType t;
 	for ( auto i = fires.begin(); i != fires.end(); i++ )
-		if ( i->first == r )
+		if ( i->whatResult() == r )
 			return;
-	fires.push_back(std::pair<Room*,DepressuriseButton>(r,DepressuriseButton(Point(250,40+20*(fires.size())),Point(100,20),r)));
+	std::vector<std::pair<SmartWString, Point>> tmp;
+	std::vector<SmartWString::StorageType>*tmpvector=new std::vector<SmartWString::StorageType>();
+	std::vector<Button<Room*>*> buttonVector;
+
+	float c1[4] = { 1.0,1.0,1.0,1.0 };
+	float c2[4] = { 0.0,0.0,0.0,1.0 };
+	float c3[4] = { 1.0,0.0,0.0,1.0 };
+	float c4[4] = { 0.0,1.0,0.0,1.0 };
+
+
+	buttonVector.push_back(new ActiveButton<Room*>(r, nullptr, std::wstring(L"Depresurise"), Point(100, 20), Point(250, 0), c1, c2, c3));
+
+	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) { return enumToString(r->whatType()); }, r))));
+	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) { return std::to_wstring((int)r->firePrecentage()); }, r))));
+	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) { return enumToString(r->currentState().second); }, r))));
+	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) { return std::to_wstring((int)r->currentOxygenLevel()); }, r))));
+
+
+	tmp.push_back(std::pair<SmartWString, Point>(SmartWString(std::wstring(L"%!  %!%% %! %!%%"), tmpvector), Point(0, 0)));
+	fires.push_back(HoverSection<Room*, Room*>(Point(300, 20), Point(5, ( fires.size() + 1 ) * 20), tmp, buttonVector, c1, c2, c4, nullptr, r, nullptr));
 }
 
 void DCS::Dx11Engine::FireManager::remove(const Room * const r)
 {
 	int k = (int)fires.size();
 	for ( auto i = fires.begin(); i != fires.end(); i++ )
-		if ( i->first == r )
+		if ( i->whatResult() == r )
 		{
 			fires.erase(i);
 			if ( k == 1 )
@@ -615,8 +651,33 @@ wchar_t * DCS::Dx11Engine::MainMenu::MainButton::enumToChar(MainMenuButton type)
 }
 
 
-template<typename t>
-DCS::Dx11Engine::Button<t>::Button(t type, t nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4])
+template<typename T>
+void DCS::Dx11Engine::Button<T>::basicRender(const float c[4] , ID2D1DeviceContext * context, Point offset) const
+{
+	Point tmp = position + offset;
+	ID2D1SolidColorBrush *background;
+	ID2D1SolidColorBrush *text;
+	const int &sizeX = size.first;
+	const int &sizeY = size.second;
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
+	context->CreateSolidColorBrush(D2D1::ColorF(c[0], c[1], c[2], 1.0f), &background);
+	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), background);
+
+
+	IDWriteFactory* t;
+	IDWriteTextFormat*k;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &k);
+	context->DrawText(this->text.c_str(), (UINT32)this->text.size(), k, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
+
+	background->Release();
+	text->Release();
+	t->Release();
+	k->Release();
+}
+
+template<typename T>
+DCS::Dx11Engine::Button<T>::Button(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4])
 {
 	this->type = type;
 	this->text = name;
@@ -629,39 +690,26 @@ DCS::Dx11Engine::Button<t>::Button(t type, t nullValue, std::wstring name, Point
 		this->color[i] = color[i];
 }
 
-template<typename t>
-void DCS::Dx11Engine::Button<t>::render(ID2D1DeviceContext * context, Point offset) const
+template<typename T>
+void DCS::Dx11Engine::Button<T>::render(ID2D1DeviceContext * context, Point offset) const
 {
-	Point tmp = position + offset;
-	ID2D1SolidColorBrush *background;
-	ID2D1SolidColorBrush *text;
-	const int &sizeX = size.first;
-	const int &sizeY = size.second;
-	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], 1.0f), &text);
-	context->CreateSolidColorBrush(D2D1::ColorF(color[0], color[1], color[2], 1.0f), &background);
-	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), background);
-
-
-	IDWriteFactory* t;
-	IDWriteTextFormat*c;
-	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
-	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
-	context->DrawText(this->text.c_str(), (UINT32)this->text.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
-
-	background->Release();
-	text->Release();
-	t->Release();
-	c->Release();
+	basicRender(color, context, offset);
 }
 
 
-template<typename t>
-t DCS::Dx11Engine::Button<t>::OnPointerPressed(Point p)
+template<typename T>
+T DCS::Dx11Engine::Button<T>::OnPointerPressed(Point p)
 {
 	if ( position.first < p.first&&position.second < p.second&&p.first < ( position + size ).first&&p.second < ( position + size ).second )
 		return type;
 	else
 		return nullValue;
+}
+
+template<typename T>
+T DCS::Dx11Engine::Button<T>::whatResult() const
+{
+	return type;
 }
 
 
@@ -848,54 +896,6 @@ void DCS::Dx11Engine::DraggableWindow::pointerRelease()
 	isDragged = false;
 }
 
-bool DCS::Dx11Engine::FireManager::DepressuriseButton::press(Point p)
-{
-	if ( p.first > position.first&&p.second > position.second&&p.first < ( position + size ).first&&p.second < ( position + size ).second )
-	{
-		isActive = !isActive;
-		controlled->setDesiredOxygen(isActive ? 0.0: 1000.0);
-		return true;
-	}
-	return false;
-}
-
-void DCS::Dx11Engine::FireManager::DepressuriseButton::render(ID2D1DeviceContext * context, Point offset)
-{
-	Point tmp = position + offset;
-	int sizeX = size.first;
-	int sizeY = size.second;
-	ID2D1SolidColorBrush *background;
-	ID2D1SolidColorBrush *text;
-	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &text);
-	context->CreateSolidColorBrush(isActive ? active : inactive, &background);
-	context->FillRectangle(D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), background);
-
-
-	IDWriteFactory* t;
-	IDWriteTextFormat*c;
-	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
-	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
-	wchar_t *buffer = new wchar_t[100];
-	swprintf(buffer, 100,L"Depressurize");
-	std::wstring k(buffer);
-	context->DrawText(buffer, (UINT32)k.size(), c, D2D1::RectF((float)tmp.first, (float)tmp.second, (float)tmp.first + sizeX, (float)tmp.second + sizeY), text);
-
-	delete[]buffer;
-	background->Release();
-	text->Release();
-	t->Release();
-	c->Release();
-
-}
-
-DCS::Dx11Engine::FireManager::DepressuriseButton::DepressuriseButton(Point position, Point size, Room * controlled)
-{
-	isActive = false;
-	this->controlled = controlled;
-	this->position = position;
-	this->size = size;
-}
-
 void DCS::Dx11Engine::BreachScreen::privateRender(ID2D1DeviceContext * context)
 {
 	if ( !rooms.empty() || remainCount > 0 )
@@ -970,8 +970,9 @@ HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::render(DCS
 	ID2D1SolidColorBrush *backgroundBrush;
 	HoverResult tmpResult;
 
+	context->CreateSolidColorBrush(D2D1::ColorF(textColor[0], textColor[1], textColor[2], textColor[3]), &textBrush);
 	Point relativeCursor = cursor - position - offset;
-	if ( relativeCursor.first > 0 && relativeCursor.second > 0 && relativeCursor < size.first&&relativeCursor.second < size.second )
+	if ( relativeCursor.first > 0 && relativeCursor.second > 0 && relativeCursor.first < size.first&&relativeCursor.second < size.second )
 	{
 		context->CreateSolidColorBrush(D2D1::ColorF(activeBackColor[0], activeBackColor[1], activeBackColor[2], activeBackColor[3]), &backgroundBrush);
 		tmpResult = result;
@@ -992,15 +993,14 @@ HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::render(DCS
 	for each ( auto var in texts )
 	{
 		tmp = offset + position + var.second;
-		auto tmpRect = D2D1::RectF(tmp.first, tmp.second, tmp.first + var.first.length() * 10, tmp.second + 20);
-		context->DrawText(*var.first, (*var.first).length, capacity, tmpRect, textBrush);
+		auto tmpRect = D2D1::RectF(tmp.first, tmp.second, tmp.first + (*var.first).size() * 20, tmp.second + 20);
+		context->DrawText((*var.first).c_str(), (*var.first).size(), c, tmpRect, textBrush);
 	}
 
-	for each ( auto var in buttons )
+	for ( auto var = buttons.begin(); var != buttons.end(); var++ )
 	{
 		tmp = offset + position;
-		var.render(context, tmp);
-	}
+		(*var)->render(context, tmp);	}
 	t->Release();
 	c->Release();
 	textBrush->Release();
@@ -1011,9 +1011,9 @@ HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::render(DCS
 template<typename ButtonResult, typename HoverResult>
 ButtonResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::pointerPress(Point p)
 {
-	for each ( auto var in buttons )
+	for ( auto var = buttons.begin(); var != buttons.end(); var++ )
 	{
-		auto tmp = var.onPointerPress(p);
+		auto tmp = (*var)->OnPointerPressed(p - position);
 		if ( tmp != nullResult )
 			return tmp;
 	}
@@ -1021,7 +1021,7 @@ ButtonResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::pointerPr
 }
 
 template<typename ButtonResult, typename HoverResult>
-DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartWString, Point>> textVector, std::vector<Button<ButtonResult>> buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover)
+DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartWString, Point>> textVector, std::vector < Button<ButtonResult>*> buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover)
 {
 	this->size = size;
 	this->position = relativePosition;
@@ -1035,22 +1035,32 @@ DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::HoverSection(Point siz
 	this->nullResult = nullResult;
 	this->result = result;
 	this->nullHover = nullHover;
+	this->buttons = buttons;
 }
 
-DCS::Dx11Engine::SmartWString::StorageType::StorageType(std::function<std::wstring( )> *f)
+template<typename ButtonResult, typename HoverResult>
+ButtonResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::whatResult(int) const
 {
-	function = f;
+	return buttons[0].whatResult();
 }
 
-DCS::Dx11Engine::SmartWString::StorageType::~StorageType()
+template<typename ButtonResult, typename HoverResult>
+HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::whatResult() const
 {
+	return result;
+}
+
+template<typename ButtonResult, typename HoverResult>
+DCS::Point DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::location()
+{
+	return position;
 }
 
 std::wstring DCS::Dx11Engine::SmartWString::operator*()
 {
 	std::wstring tmp;
 	std::wstring tmpString;
-	std::vector<StorageType>::iterator k = argVector.begin();
+	auto k = argVector->begin();
 	for( std::wstring::iterator i=format.begin();i!=format.end();i++ )
 		switch ( *i )
 		{
@@ -1059,38 +1069,8 @@ std::wstring DCS::Dx11Engine::SmartWString::operator*()
 			switch ( *++i )
 			{
 			case L'!':
-				tmp.append((* ( *k ).function )( ));
+				tmp.append((* ( *k ))( ));
 				k++;
-				break;
-			case L'd':
-			case L'D':
-				tmp.append(std::to_wstring(( *(double*)( *k ).pointer )));
-				k++;
-				break;
-			case L's':
-			case L'S':
-				tmp.append(( *(std::wstring*)( *k ).pointer ));
-				k++;
-				break;
-
-			case L'i':
-			case L'I':
-				tmp.append(std::to_wstring(( *(int*)( *k ).pointer )));
-				k++;
-				break;
-			case L'0':
-				tmpString = std::wstring();
-				tmpString.push_back(L'%');
-				while ( *i != L'd' )
-				{
-					tmpString.push_back(*i);
-					i++;
-				}
-				tmpString.push_back(L'd');
-				wchar_t buffer[50];
-				swprintf(buffer, tmpString.c_str(), ( *(int*)( *k ).pointer ));
-				tmp.append(buffer);
-				delete[]buffer;
 				break;
 			default:
 				tmp.push_back(*i);
@@ -1107,7 +1087,7 @@ std::wstring DCS::Dx11Engine::SmartWString::operator*()
 	return tmp;
 }
 
-DCS::Dx11Engine::SmartWString::SmartWString(std::wstring whatFormat, std::vector<StorageType> v)
+DCS::Dx11Engine::SmartWString::SmartWString(std::wstring whatFormat, std::vector<StorageType> *v)
 {
 	format = whatFormat;
 	argVector = v;
@@ -1115,19 +1095,44 @@ DCS::Dx11Engine::SmartWString::SmartWString(std::wstring whatFormat, std::vector
 
 DCS::Dx11Engine::SmartWString::~SmartWString()
 {
-	while ( !argVector.empty() )
-		if ( format.substr(0, 2) == std::wstring(L"%!") )
-		{
-			delete argVector.front().function;
-			argVector.erase(argVector.begin());
-		}
-		else
-			if ( format.front() == L'%' )
-			{
-				format.erase(format.begin());
-				format.erase(format.begin());
-				argVector.erase(argVector.begin());
-			}
-			else
-				format.erase(format.begin());
+	//	while ( !argVector.empty() )
+	//		if ( format.substr(0, 2) == std::wstring(L"%!") )
+	//		{
+	//			delete argVector.front().function;
+	//			argVector.erase(argVector.begin());
+	//		}
+	//		else
+	//			if ( format.front() == L'%' )
+	//			{
+	//				format.erase(format.begin());
+	//				format.erase(format.begin());
+	//				argVector.erase(argVector.begin());
+	//			}
+	//			else
+	//				format.erase(format.begin());
+	//
+}
+template<typename T>
+DCS::Dx11Engine::ActiveButton<T>::ActiveButton(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4], float activeColor[4]) : Button(type, nullValue, name, size, position, textColor, color)
+{
+	isActive = false;
+	for ( int i = 0; i < 4; i++ )
+		this->activeColor[i] = activeColor[i];
+}
+template<typename T>
+void DCS::Dx11Engine::ActiveButton<T>::render(ID2D1DeviceContext * context, Point offset) const
+{
+	basicRender(isActive ? activeColor : color, context, offset);
+}
+
+template<typename T>
+T DCS::Dx11Engine::ActiveButton<T>::OnPointerPressed(Point position)
+{
+	if ( Button::OnPointerPressed(position) == nullValue )
+		return nullValue;
+	else
+	{
+		isActive = !isActive;
+		return type;
+	}
 }

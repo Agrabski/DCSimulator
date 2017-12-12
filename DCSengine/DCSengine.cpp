@@ -492,6 +492,16 @@ double DCS::Room::roomVolume()
 	return volume;
 }
 
+double DCS::Room::firePrecentage()
+{
+	return ( fire / MAX_FIRE_VALUE ) * 100;
+}
+
+double DCS::Room::oxygenWanted()
+{
+	return desiredOxygen;
+}
+
 DCS::Point DCS::operator+(const Point & left, const Point & right)
 {
 	return Point(left.first + right.first, left.second + right.second);

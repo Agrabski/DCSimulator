@@ -16,22 +16,37 @@ namespace DCS
 
 	class Dx11Engine :public Game
 	{
+
 		unsigned int oddFrame = 0;
 
-		template<typename t> class Button
+		template<typename T> class Button
 		{
-			t type;
-			t nullValue;
+		protected:
+			T type;
+			T nullValue;
 			Point size;
 			Point position;
 			std::wstring text;
 			float textColor[4];
 			float color[4];
+			void basicRender(const float c[4], ID2D1DeviceContext * context, Point offset) const;
 		public:
-			Button(t type,t nullValue, std::wstring name, Point size, Point position, float textColor[4],float color[4]);
-			void render(ID2D1DeviceContext * context, Point offset) const;
-			t OnPointerPressed(Point position);
+			Button(T type,T nullValue, std::wstring name, Point size, Point position, float textColor[4],float color[4]);
+			virtual void render(ID2D1DeviceContext * context, Point offset) const;
+			T virtual OnPointerPressed(Point position);
+			T whatResult() const;
 		};
+		
+		template <typename T> class ActiveButton: public Button<T>
+		{
+			bool isActive;
+			float activeColor[4];
+		public:
+			ActiveButton(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4], float activeColor[4]);
+			virtual void render(ID2D1DeviceContext * context, Point offset) const;
+			T virtual OnPointerPressed(Point position);
+		};
+
 
 		//example for smartwstring
 
@@ -49,19 +64,13 @@ namespace DCS
 		class SmartWString
 		{
 		public:
-			union StorageType
-			{
-				StorageType(std::function<std::wstring( )>*f);
-				~StorageType();
-				std::function<std::wstring()> *function;
-				void * pointer;
-			};
+			typedef std::unique_ptr<std::function<std::wstring()>> StorageType;
 		private:
-			std::vector<StorageType> argVector;
+			std::vector<StorageType>* argVector;
 			std::wstring format;
 		public:
 			std::wstring operator*();
-			SmartWString(std::wstring whatFormat, std::vector<StorageType> v);
+			SmartWString(std::wstring whatFormat, std::vector<StorageType> *v);
 			~SmartWString();
 		};
 
@@ -72,15 +81,18 @@ namespace DCS
 			ButtonResult nullResult;
 			HoverResult result;
 			HoverResult nullHover;
-			std::vector<std::pair<std::SmartWString, Point>>texts;
-			std::vector < Button<ButtonResult>>buttons;
+			std::vector<std::pair<SmartWString, Point>>texts;
+			std::vector < Button<ButtonResult>*>buttons;
 			float backColor[4];
 			float textColor[4];
 			float activeBackColor[4];
 		public:
 			HoverResult render(DCS::Point offset, ID2D1DeviceContext * context, Point);
 			ButtonResult pointerPress(Point);
-			HoverSection(Point size, Point relativePosition, std::vector<std::pair<std::SmartWString, Point>>textVector, std::vector < Button<ButtonResult>>buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover);
+			HoverSection(Point size, Point relativePosition, std::vector<std::pair<SmartWString, Point>>textVector, std::vector < Button<ButtonResult>*>buttons, float backColor[4], float textColor[4], float activeBackColor[4], ButtonResult nullResult, HoverResult result, HoverResult nullHover);
+			ButtonResult whatResult(int) const;
+			HoverResult whatResult() const;
+			Point location();
 		};
 
 		class DraggableWindow
@@ -108,20 +120,7 @@ namespace DCS
 			int remainCount = 0;
 			virtual void press(Point);
 			virtual void privateRender(ID2D1DeviceContext * context);
-			class DepressuriseButton
-			{
-				Room*controlled;
-				Point position;
-				Point size;
-				D2D1::ColorF active = D2D1::ColorF(D2D1::ColorF::Red);
-				D2D1::ColorF inactive = D2D1::ColorF(D2D1::ColorF::Green);
-				bool isActive;
-			public:
-				bool press(Point);
-				void render(ID2D1DeviceContext * context, Point offset);
-				DepressuriseButton(Point position, Point size, Room*controlled);
-			};
-			std::vector<std::pair<Room*,DepressuriseButton>>fires;
+			std::vector<HoverSection<Room*,Room*>>fires;
 		public:
 			FireManager(Point position);
 			void add(  Room *  r);
@@ -223,13 +222,14 @@ namespace DCS
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 		void OnPointerReleased(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
 		void OnButtonPress(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::KeyEventArgs ^ args);
-		Point shipPosition = Point(100, 100);
+		static Point shipPosition;
 		void gameRender(ID2D1DeviceContext * context);
 		void renderRoom(ID2D1DeviceContext * context, const Room&room);
 		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
 		void renderDoor(ID2D1DeviceContext * context, Door&toRender);
 		void renderBreach(ID2D1DeviceContext * context, const HullBreach&toRender);
 	};
+
 }
 
 // Renders Direct2D and 3D content on the screen.
