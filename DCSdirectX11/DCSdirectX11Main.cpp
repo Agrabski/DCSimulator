@@ -396,7 +396,7 @@ void DCS::Dx11Engine::renderBreach(ID2D1DeviceContext * context, const HullBreac
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &brush);
 	else
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), &brush);
-	context->FillEllipse(D2D1::Ellipse(D2D1::Point2F(( toRender.position() + shipPosition ).first, ( toRender.position() + shipPosition ).second), 5, toRender.whatSize()/10), brush);
+	context->FillEllipse(D2D1::Ellipse(D2D1::Point2F((float)( toRender.position() + shipPosition ).first, (float)( toRender.position() + shipPosition ).second), 5.0f, (float)toRender.whatSize()/10), brush);
 	brush->Release();
 
 }
@@ -408,7 +408,7 @@ void DCS::Dx11Engine::FireManager::press(Point p)
 	{
 		Room*  n = var->pointerPress(tmp);
 		if ( n != nullptr )
-			n->oxygenWanted()!=0?n->setDesiredOxygen(0): n->setDesiredOxygen(1000);
+			return;
 	}
 }
 
@@ -481,6 +481,7 @@ void DCS::Dx11Engine::FireManager::add(Room * r)
 	std::vector<std::pair<SmartWString, Point>> tmp;
 	std::vector<SmartWString::StorageType>*tmpvector=new std::vector<SmartWString::StorageType>();
 	std::vector<Button<Room*>*> buttonVector;
+	isVisible = true;
 
 	float c1[4] = { 1.0,1.0,1.0,1.0 };
 	float c2[4] = { 0.0,0.0,0.0,1.0 };
@@ -488,7 +489,17 @@ void DCS::Dx11Engine::FireManager::add(Room * r)
 	float c4[4] = { 0.0,1.0,0.0,1.0 };
 	float c5[4] = { 0.0,0.0,0.0,1.0 };
 
-	buttonVector.push_back(new ActiveButton<Room*>(r, nullptr, std::wstring(L"Depresurise"), Point(100, 20), Point(220, 0), c1, c4, c3));
+	buttonVector.push_back(new ActiveButton<Room*>(r, nullptr, std::wstring(L"Depresurise"), Point(100, 20), Point(220, 0), c1, c4, c3, 
+		std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>(std::bind([](bool, Room*r) 
+	{
+		return r->oxygenWanted() == 100; 
+	},
+			std::placeholders::_1, r))),
+		std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>(std::bind([](bool b, Room*r) 
+	{
+		r->setDesiredOxygen(b ? 0 : 1000);
+		return r->oxygenWanted() == 100; },
+			std::placeholders::_1, r)))));
 
 	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) { return enumToString(r->whatType()); }, r))));
 	tmpvector->emplace_back(std::unique_ptr<f>(new f(std::bind([](Room*r) 
@@ -701,7 +712,7 @@ DCS::Dx11Engine::Button<T>::Button(T type, T nullValue, std::wstring name, Point
 }
 
 template<typename T>
-void DCS::Dx11Engine::Button<T>::render(ID2D1DeviceContext * context, Point offset) const
+void DCS::Dx11Engine::Button<T>::render(ID2D1DeviceContext * context, Point offset)
 {
 	basicRender(color, context, offset);
 }
@@ -1021,7 +1032,8 @@ HoverResult DCS::Dx11Engine::HoverSection<ButtonResult, HoverResult>::render(DCS
 	for ( auto var = buttons.begin(); var != buttons.end(); var++ )
 	{
 		tmp = offset + position;
-		(*var)->render(context, tmp);	}
+		(*var)->render(context, tmp);
+	}
 	t->Release();
 	c->Release();
 	textBrush->Release();
@@ -1142,8 +1154,18 @@ DCS::Dx11Engine::ActiveButton<T>::ActiveButton(T type, T nullValue, std::wstring
 		this->activeColor[i] = activeColor[i];
 }
 template<typename T>
-void DCS::Dx11Engine::ActiveButton<T>::render(ID2D1DeviceContext * context, Point offset) const
+DCS::Dx11Engine::ActiveButton<T>::ActiveButton(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4], float activeColor[4], std::unique_ptr<std::function<bool(bool)>>& condition, std::unique_ptr<std::function<bool(bool)>>& onPress) : Button(type, nullValue, name, size, position, textColor, color)
 {
+	isActive = false;
+	for ( int i = 0; i < 4; i++ )
+		this->activeColor[i] = activeColor[i];
+	this->condition.swap( condition);
+	this->onPress.swap( onPress);
+}
+template<typename T>
+void DCS::Dx11Engine::ActiveButton<T>::render(ID2D1DeviceContext * context, Point offset) 
+{
+	isActive = ( *condition )( isActive );
 	basicRender(isActive ? activeColor : color, context, offset);
 }
 
@@ -1154,7 +1176,7 @@ T DCS::Dx11Engine::ActiveButton<T>::OnPointerPressed(Point position)
 		return nullValue;
 	else
 	{
-		isActive = !isActive;
+		isActive = ( *onPress )( isActive );
 		return type;
 	}
 }
@@ -1186,7 +1208,7 @@ void DCS::Dx11Engine::RoomManager::press(DCS::Point p)
 	{
 		Room*  n = var->pointerPress(tmp);
 		if ( n != nullptr )
-			n->oxygenWanted() != 0 ? n->setDesiredOxygen(0) : n->setDesiredOxygen(1000);
+			return;
 	}
 }
 
@@ -1209,7 +1231,18 @@ DCS::Dx11Engine::RoomManager::RoomManager(std::vector<Room*> &r, Point position)
 
 		tmpString.push_back(std::pair<SmartWString, Point>(SmartWString(std::wstring(L"%! %!% %!% %!"), tmpvector), Point(0, 0)));
 		std::vector<Button<Room*>*> tmpButton;
-		tmpButton.push_back(new ActiveButton<Room*>(var, nullptr,std::wstring( L"Depresurise"), Point(100, 20),Point(300,0), c2, c1, c3));
+		tmpButton.push_back(new ActiveButton<Room*>(var, nullptr,std::wstring( L"Depresurise"), Point(100, 20),Point(300,0), c2, c1, c3,
+			std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>(std::bind([](bool, Room*r)
+		{
+			return r->oxygenWanted() == 100;
+		},
+				std::placeholders::_1, var))),
+			std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>(std::bind([](bool b, Room*r)
+		{
+			r->setDesiredOxygen(b ? 0 : 1000);
+			return r->oxygenWanted() == 100;
+		},
+				std::placeholders::_1, var)))));
 		rooms.emplace_back(DCS::Point(300, 20), DCS::Point(5, i), tmpString, tmpButton, c1, c2, c3, nullptr, var, nullptr);
 	}
 }

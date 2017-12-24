@@ -32,7 +32,7 @@ namespace DCS
 			void basicRender(const float c[4], ID2D1DeviceContext * context, Point offset) const;
 		public:
 			Button(T type,T nullValue, std::wstring name, Point size, Point position, float textColor[4],float color[4]);
-			virtual void render(ID2D1DeviceContext * context, Point offset) const;
+			virtual void render(ID2D1DeviceContext * context, Point offset);
 			T virtual OnPointerPressed(Point position);
 			T whatResult() const;
 		};
@@ -41,9 +41,12 @@ namespace DCS
 		{
 			bool isActive;
 			float activeColor[4];
+			std::unique_ptr<std::function<bool(bool)>> condition = std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>([](bool b) { return b; }));
+			std::unique_ptr<std::function<bool(bool)>> onPress = std::unique_ptr<std::function<bool(bool)>>(new std::function<bool(bool)>([](bool b) { return !b; }));
 		public:
 			ActiveButton(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4], float activeColor[4]);
-			virtual void render(ID2D1DeviceContext * context, Point offset) const;
+			ActiveButton(T type, T nullValue, std::wstring name, Point size, Point position, float textColor[4], float color[4], float activeColor[4], std::unique_ptr<std::function<bool(bool)>>& condition,std::unique_ptr<std::function<bool(bool)>>& onPress);
+			virtual void render(ID2D1DeviceContext * context, Point offset);
 			T virtual OnPointerPressed(Point position);
 		};
 
