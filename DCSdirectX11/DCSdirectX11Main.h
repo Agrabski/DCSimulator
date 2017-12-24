@@ -47,20 +47,6 @@ namespace DCS
 			T virtual OnPointerPressed(Point position);
 		};
 
-
-		//example for smartwstring
-
-		//std::vector<SmartWString::StorageType> tmpVector;
-
-		//tmpVector.push_back(new std::function<std::wstring()>(std::bind(( std::wstring(*)( DCS::Room::RoomType ) )enumToString, std::bind(&Room::whatType, rooms[0])( ))));
-		//tmpVector.push_back(( new  std::function<std::wstring()>(std::bind(( std::wstring(*)( int ) )std::to_wstring, std::bind(&Room::currentOxygenLevel, rooms[0]))) ));
-
-		//SmartWString string = SmartWString(std::wstring(L"%! %!%%"), tmpVector);
-		//auto l = *string;
-
-
-
-
 		class SmartWString
 		{
 		public:
@@ -99,6 +85,8 @@ namespace DCS
 		{
 			bool isDragged;
 			D2D1::ColorF::Enum color = D2D1::ColorF::White;
+			std::wstring name;
+			Button<bool>close = Button<bool>(true, false, std::wstring(L"X"), Point(20, 20), Point(size.second - 20, 0), []() { float a[4] = { 0,0,0,1 }; return a; } ( ), []() { float a[4] = { 1,1,1,1 }; return a; } ( ));
 		protected:
 			bool isVisible;
 			Point dragArea;
@@ -107,7 +95,7 @@ namespace DCS
 			Point grabPoint;
 			virtual void privateRender(ID2D1DeviceContext * context)=0;
 			virtual  void press(DCS::Point)=0;
-			DraggableWindow(D2D1::ColorF::Enum, Point size, Point position);
+			DraggableWindow(D2D1::ColorF::Enum, Point size, Point position, std::wstring name);
 		public:
 			void render(DCS::Point offset, ID2D1DeviceContext * context);
 			void pointerPress(Point);
@@ -213,9 +201,25 @@ namespace DCS
 			void addBreach(Room*);
 		} breaches = BreachScreen(Point(600, 600));
 
-		class RoomManager : DraggableWindow
+		class RoomManager : public DraggableWindow
 		{
+			std::vector<HoverSection<Room*, Room*>>rooms;
+			virtual void privateRender(ID2D1DeviceContext * context);
+			virtual  void press(DCS::Point);
+		public:
+			RoomManager(std::vector<Room*>&r, Point position);
+		}rManager = RoomManager(std::vector<Room*>(), Point(100, 200));
 
+		class WindowManager
+		{
+			std::vector<DraggableWindow*>windows;
+			float color[4];
+		public:
+			void render(ID2D1DeviceContext*context);
+			void onPress(Point p);
+			void addWindow(DraggableWindow*);
+			WindowManager(float color[4]);
+			~WindowManager();
 		};
 
 	public:

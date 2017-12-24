@@ -69,6 +69,7 @@ namespace DCS
 		std::vector<MobileEntity*>::const_iterator entityCend();
 		std::vector<Door*>::iterator doorBegin();
 		std::vector<Door*>::iterator doorEnd();
+		std::vector<Room*>room();
 		void update();
 		Ship();
 		~Ship();
