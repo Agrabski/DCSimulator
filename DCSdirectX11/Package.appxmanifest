@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
-  <Identity Name="b7c355fc-b007-44bb-9894-2f32c31b0306" Publisher="CN=adam_000" Version="1.0.15.0" />
+  <Identity Name="b7c355fc-b007-44bb-9894-2f32c31b0306" Publisher="CN=adam_000" Version="1.0.16.0" />
   <mp:PhoneIdentity PhoneProductId="b7c355fc-b007-44bb-9894-2f32c31b0306" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>DCSdirectX11</DisplayName>

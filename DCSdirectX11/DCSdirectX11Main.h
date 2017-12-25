@@ -89,7 +89,7 @@ namespace DCS
 			bool isDragged;
 			D2D1::ColorF::Enum color = D2D1::ColorF::White;
 			std::wstring name;
-			Button<bool>close = Button<bool>(true, false, std::wstring(L"X"), Point(20, 20), Point(size.second - 20, 0), []() { float a[4] = { 0,0,0,1 }; return a; } ( ), []() { float a[4] = { 1,1,1,1 }; return a; } ( ));
+			Button<bool>closeButton = Button<bool>(true, false, std::wstring(L"X"), Point(20, 20), Point(size.second - 20, 0), []() { float a[4] = { 0,0,0,1 }; return a; } ( ), []() { float a[4] = { 1,1,1,1 }; return a; } ( ));
 		protected:
 			bool isVisible;
 			Point dragArea;
@@ -103,10 +103,15 @@ namespace DCS
 			void render(DCS::Point offset, ID2D1DeviceContext * context);
 			void pointerPress(Point);
 			void pointerRelease();
+			std::wstring title();
+			bool visible();
+			virtual bool newContent();
+			void open();
 		};
 
 		class FireManager : public DraggableWindow
 		{
+			bool newFires = false;
 			int oddFrame = 0;
 			int remainCount = 0;
 			virtual void press(Point);
@@ -116,6 +121,7 @@ namespace DCS
 			FireManager(Point position);
 			void add(  Room *  r);
 			void remove(const Room * const r);
+			virtual bool newContent();
 		}fManager = FireManager(Point(500, 100));
 
 		class EscMenu
@@ -196,12 +202,14 @@ namespace DCS
 		{
 			int remainCount;
 			int oddFrame;
+			bool newBreaches = false;
 			std::vector<Room*>rooms;
 			virtual void privateRender(ID2D1DeviceContext * context);
 			virtual  void press(DCS::Point);
 		public:
 			BreachScreen(Point p);
 			void addBreach(Room*);
+			virtual bool newContent();
 		} breaches = BreachScreen(Point(600, 600));
 
 		class RoomManager : public DraggableWindow
@@ -215,15 +223,17 @@ namespace DCS
 
 		class WindowManager
 		{
-			std::vector<DraggableWindow*>windows;
-			float color[4];
+			std::vector<ActiveButton<bool>>windows;
+			float color[4] = { 0,1,0,1 };
+			unsigned int oddFrame = 0;
 		public:
 			void render(ID2D1DeviceContext*context);
-			void onPress(Point p);
+			void pointerPress(Point p);
 			void addWindow(DraggableWindow*);
 			WindowManager(float color[4]);
-			~WindowManager();
-		};
+			WindowManager();
+			~WindowManager() = default;
+		}wManager;
 
 	public:
 		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
@@ -235,6 +245,7 @@ namespace DCS
 		void renderMobileEntity(ID2D1DeviceContext * context, MobileEntity*entity);
 		void renderDoor(ID2D1DeviceContext * context, Door&toRender);
 		void renderBreach(ID2D1DeviceContext * context, const HullBreach&toRender);
+		Dx11Engine();
 	};
 
 }

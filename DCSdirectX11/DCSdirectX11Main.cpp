@@ -168,7 +168,7 @@ void DCS::Dx11Engine::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, W
 			objectives.pointerPress(position);
 			breaches.pointerPress(position);
 			rManager.pointerPress(position);
-
+			wManager.pointerPress(position);
 			if ( Windows::System::VirtualKeyModifiers::Shift == args->KeyModifiers )
 				for ( std::vector<DCS::MobileEntity*>::iterator i = currentScenario->ship->mobileEntities.begin(); i != currentScenario->ship->mobileEntities.end(); i++ )
 					if ( magnitude(DCS::operator+(DCS::operator+(( *i )->position, ( *i )->currentRoom->position), shipPosition) - position) < 30 )
@@ -262,7 +262,7 @@ void DCS::Dx11Engine::gameRender(ID2D1DeviceContext * context)
 		fManager.render(Point(p.X,p.Y)- Point(t.Left, t.Top),context);
 		breaches.render(Point(p.X, p.Y) - Point(t.Left, t.Top), context);
 		rManager.render(Point(p.X, p.Y) - Point(t.Left, t.Top), context);
-
+		wManager.render(context);
 
 		if ( state != Continue )
 		{
@@ -401,6 +401,14 @@ void DCS::Dx11Engine::renderBreach(ID2D1DeviceContext * context, const HullBreac
 
 }
 
+DCS::Dx11Engine::Dx11Engine()
+{
+	wManager.addWindow(&fManager);
+	wManager.addWindow(&rManager);
+	wManager.addWindow(&breaches);
+	wManager.addWindow(&objectives);
+}
+
 void DCS::Dx11Engine::FireManager::press(Point p)
 {
 	Point tmp = p - position;
@@ -415,9 +423,9 @@ void DCS::Dx11Engine::FireManager::press(Point p)
 void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 {
 
-	if ( !fires.empty() || remainCount > 0 )
+	if ( (!fires.empty() || remainCount > 0)&&isVisible )
 	{
-		isVisible = true;
+		newFires = false;
 		oddFrame++;
 		remainCount--;
 		ID2D1SolidColorBrush *brush;
@@ -467,7 +475,7 @@ void DCS::Dx11Engine::FireManager::privateRender(ID2D1DeviceContext * context)
 	}
 }
 
-DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1::ColorF::White, Point(350, 0), position,std::wstring(L"Fire!"))
+DCS::Dx11Engine::FireManager::FireManager(Point position):	DraggableWindow(D2D1::ColorF::White, Point(350, 0), position,std::wstring(L"Fires"))
 {
 }
 
@@ -481,7 +489,8 @@ void DCS::Dx11Engine::FireManager::add(Room * r)
 	std::vector<std::pair<SmartWString, Point>> tmp;
 	std::vector<SmartWString::StorageType>*tmpvector=new std::vector<SmartWString::StorageType>();
 	std::vector<Button<Room*>*> buttonVector;
-	isVisible = true;
+	if(!isVisible)
+		newFires = true;
 
 	float c1[4] = { 1.0,1.0,1.0,1.0 };
 	float c2[4] = { 0.0,0.0,0.0,1.0 };
@@ -529,6 +538,11 @@ void DCS::Dx11Engine::FireManager::remove(const Room * const r)
 				remainCount = 120;
 			return;
 		}
+}
+
+bool DCS::Dx11Engine::FireManager::newContent()
+{
+	return newFires;
 }
 
 std::wstring  DCS::enumToString(Room::RoomType t)
@@ -876,7 +890,7 @@ DCS::Dx11Engine::DraggableWindow::DraggableWindow(D2D1::ColorF::Enum c, Point si
 	grabPoint = { 0,0 };
 	float a[4] = { 0,0,0,1 };
 	float b[4] = { 0,0,1,1 }; 
-	close = Button<bool>(true, false, std::wstring(L"X"), Point(20, 20), Point(size.first - 20, 0),a,b );
+	closeButton = Button<bool>(true, false, std::wstring(L"X"), Point(20, 20), Point(size.first - 20, 0),a,b );
 }
 
 void DCS::Dx11Engine::DraggableWindow::render(DCS::Point p, ID2D1DeviceContext * context)
@@ -906,14 +920,14 @@ void DCS::Dx11Engine::DraggableWindow::render(DCS::Point p, ID2D1DeviceContext *
 		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 		context->DrawRectangle(D2D1::RectF((float)position.first, (float)position.second, (float)position.first + sizeX, (float)position.second + sizeY), brush);
 		brush->Release();
-		close.render(context, position);
+		closeButton.render(context, position);
 		privateRender(context);
 	}
 }
 
 void DCS::Dx11Engine::DraggableWindow::pointerPress(Point p)
 {
-	if ( close.OnPointerPressed(p - position) )
+	if ( closeButton.OnPointerPressed(p - position) )
 		isVisible = false;
 	if ( p.first > position.first&&p.first<position.first + size.first&&p.second>position.second&&p.second < position.second + size.second )
 		if ( p.first > position.first&&p.first<position.first + dragArea.first&&p.second>position.second&&p.second < position.second + dragArea.second )
@@ -930,54 +944,67 @@ void DCS::Dx11Engine::DraggableWindow::pointerRelease()
 	isDragged = false;
 }
 
+std::wstring DCS::Dx11Engine::DraggableWindow::title()
+{
+	return name;
+}
+
+bool DCS::Dx11Engine::DraggableWindow::visible()
+{
+	return isVisible;
+}
+
+bool DCS::Dx11Engine::DraggableWindow::newContent()
+{
+	return false;
+}
+
+void DCS::Dx11Engine::DraggableWindow::open()
+{
+	isVisible = true;
+}
+
 void DCS::Dx11Engine::BreachScreen::privateRender(ID2D1DeviceContext * context)
 {
-	if ( !rooms.empty() || remainCount > 0 )
-	{
-		isVisible = true;
-		oddFrame++;
-		remainCount--;
-		ID2D1SolidColorBrush *brush;
-		ID2D1SolidColorBrush *brush1;
-		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 1.0f), &brush1);
+	newBreaches = false;
+	oddFrame++;
+	remainCount--;
+	ID2D1SolidColorBrush *brush;
+	ID2D1SolidColorBrush *brush1;
+	context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 1.0f), &brush1);
 
-		if ( abs( oddFrame % 60) < 30 )
-			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
-		else
-			context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
-		int sizeX = size.first;
-		int sizeY = (int)( rooms.size() + 2 ) * 20 + 10;
-		size.second = sizeY;
-		IDWriteFactory* t;
-		IDWriteTextFormat*c;
-		DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
-		t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
-		wchar_t *buffer = new wchar_t[100];
-		swprintf(buffer, 100, L"Room - Oxygen");
-		context->DrawText(buffer, 14, c, D2D1::RectF((float)position.first + 5, (float)position.second + 20, (float)position.first + sizeX, (float)position.second + 20), brush);
-		for ( int i = 0; i < rooms.size(); i++ )
-		{
-			swprintf(buffer, 100, L"%s  %03d%%", DCS::enumToString(rooms[i]->whatType()).c_str(), ( rooms[i]->currentOxygenLevel()) );
-			std::wstring t(buffer);
-			context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 20, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 20 + 20), brush);
-		}
-		delete[]buffer;
-		brush->Release();
-		brush1->Release();
-		t->Release();
-		c->Release();
-	}
+	if ( abs(oddFrame % 60) < 30 )
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 1.0f), &brush);
 	else
+		context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red, 1.0f), &brush);
+	int sizeX = size.first;
+	int sizeY = (int)( rooms.size() + 2 ) * 20 + 10;
+	size.second = sizeY;
+	IDWriteFactory* t;
+	IDWriteTextFormat*c;
+	DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory ), reinterpret_cast<IUnknown**>( &t ));
+	t->CreateTextFormat(L"arial", NULL, DWRITE_FONT_WEIGHT_THIN, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"whatever", &c);
+	wchar_t *buffer = new wchar_t[100];
+	swprintf(buffer, 100, L"Room - Oxygen");
+	context->DrawText(buffer, 14, c, D2D1::RectF((float)position.first + 5, (float)position.second + 20, (float)position.first + sizeX, (float)position.second + 20), brush);
+	for ( int i = 0; i < rooms.size(); i++ )
 	{
-		isVisible = false;
+		swprintf(buffer, 100, L"%s  %03d%%", DCS::enumToString(rooms[i]->whatType()).c_str(), ( rooms[i]->currentOxygenLevel() ));
+		std::wstring t(buffer);
+		context->DrawText(buffer, (UINT32)t.length(), c, D2D1::RectF((float)position.first + 5, (float)position.second + ( i + 2 ) * 20, (float)position.first + sizeX, (float)position.second + ( i + 2 ) * 20 + 20), brush);
 	}
+	delete[]buffer;
+	brush->Release();
+	brush1->Release();
+	t->Release();
+	c->Release();
 }
 
 void DCS::Dx11Engine::BreachScreen::press(DCS::Point)
 {
 }
 
-DCS::Dx11Engine::BreachScreen::BreachScreen(Point p) : DraggableWindow(D2D1::ColorF::Enum::White, Point(200, 0), p,std::wstring(L"Hull Breached!"))
+DCS::Dx11Engine::BreachScreen::BreachScreen(Point p) : DraggableWindow(D2D1::ColorF::Enum::White, Point(200, 0), p,std::wstring(L"Hull Breaches"))
 {
 	int remainCount = 0;
 	int oddFrame = 0;
@@ -993,6 +1020,12 @@ void DCS::Dx11Engine::BreachScreen::addBreach(Room *r)
 	else
 		return;
 	rooms.push_back(r);
+	newBreaches = true;
+}
+
+bool DCS::Dx11Engine::BreachScreen::newContent()
+{
+	return newBreaches;
 }
 
 template<typename ButtonResult, typename HoverResult>
@@ -1245,4 +1278,57 @@ DCS::Dx11Engine::RoomManager::RoomManager(std::vector<Room*> &r, Point position)
 				std::placeholders::_1, var)))));
 		rooms.emplace_back(DCS::Point(300, 20), DCS::Point(5, i), tmpString, tmpButton, c1, c2, c3, nullptr, var, nullptr);
 	}
+}
+
+void DCS::Dx11Engine::WindowManager::render(ID2D1DeviceContext * context)
+{
+	oddFrame++;
+	ID2D1SolidColorBrush *brush;
+	context->CreateSolidColorBrush(D2D1::ColorF(color[0],color[1],color[2], color[3]), &brush);
+	context->FillRectangle(D2D1::RectF(0, 0, 10000, 40), brush);
+	brush->Release();
+	for ( auto var = windows.begin(); var != windows.end();var++ )
+	{
+		var->render(context, Point(0, 0));
+	}
+}
+
+void DCS::Dx11Engine::WindowManager::pointerPress(Point p)
+{
+	for ( auto button = windows.begin(); button != windows.end(); button++ )
+		if ( button->OnPointerPressed(p) )
+			return;
+}
+
+void DCS::Dx11Engine::WindowManager::addWindow(DraggableWindow *w)
+{
+	float c1[4] = { 0,0,0,1 };
+	float c2[4] = { 1,1,1,1 };
+	float c3[4] = { 1,0,0,1 };
+	windows.push_back(ActiveButton<bool>(true, false, std::wstring(w->title()), Point(200, 20), Point(250 * ( windows.size() + 1 ), 10), c1, c2, c3,
+		std::unique_ptr<std::function<bool(bool)>>
+		(new std::function<bool(bool)>(std::bind([](bool, DraggableWindow*r,unsigned int*oddFrame)
+	{
+		return ( !r->visible() ) && r->newContent() && ( ( *oddFrame ) % 60 < 45 );
+	}
+			, std::placeholders::_1, w, &oddFrame))),
+		std::unique_ptr<std::function<bool(bool)>>
+		(new std::function<bool(bool)>(std::bind([](bool b, DraggableWindow*r)
+	{
+		if ( !r->visible() )
+			r->open();
+		return b;
+	}
+			, std::placeholders::_1, w)))
+		));
+}
+
+DCS::Dx11Engine::WindowManager::WindowManager(float color[4])
+{
+	for ( int i = 0; i < 4; i++ )
+		this->color[i] = color[i];
+}
+
+DCS::Dx11Engine::WindowManager::WindowManager()
+{
 }
